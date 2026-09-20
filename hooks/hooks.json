@@ -1,5 +1,5 @@
 {
-  "description": "Foreman lifecycle hooks: flag oversized diffs right after they're written.",
+  "description": "Foreman lifecycle hooks: after each edit, flag an oversized diff and production code that arrived without a test.",
   "hooks": {
     "PostToolUse": [
       {
@@ -7,8 +7,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v bash >/dev/null 2>&1 && bash \"${CLAUDE_PLUGIN_ROOT}/hooks/scope-check.sh\" || exit 0",
-            "commandWindows": "if (Get-Command bash -ErrorAction SilentlyContinue) { bash \"$env:CLAUDE_PLUGIN_ROOT/hooks/scope-check.sh\" }",
+            "command": "command -v bash >/dev/null 2>&1 && bash \"${CLAUDE_PLUGIN_ROOT}/hooks/after-edit.sh\" || exit 0",
+            "commandWindows": "if (Get-Command bash -ErrorAction SilentlyContinue) { bash \"$env:CLAUDE_PLUGIN_ROOT/hooks/after-edit.sh\" }",
             "timeout": 10
           }
         ]

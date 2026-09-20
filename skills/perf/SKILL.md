@@ -37,4 +37,4 @@ Always name what a design change costs (consistency, complexity, operational sur
 
 - Don't micro-optimize code that isn't on a hot path; that's wasted effort and adds noise to the diff.
 - Don't recommend a caching layer, queue, or read replica as a first move if the actual problem is a missing index or an N+1 query, fix the cheap thing first.
-- Don't sacrifice correctness or readability for a speedup that hasn't been shown to matter. Pair with `lean`: the fastest code is often also the simplest, but not always, call out explicitly when they trade off against each other.
+- Don't sacrifice correctness or readability for a speedup that hasn't been shown to matter. The fastest code is often also the simplest, but not always: when speed and clarity genuinely trade off, say so explicitly instead of quietly picking one.

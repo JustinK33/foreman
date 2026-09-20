@@ -1,9 +1,44 @@
 # foreman
 
-A tight senior-engineer toolkit for Claude Code.
-Five skills, one hook, no filler: TDD, code review, security audits, performance audits, and documentation that doesn't sound like a model wrote it.
+[![ci](https://github.com/JustinK33/foreman/actions/workflows/ci.yml/badge.svg)](https://github.com/JustinK33/foreman/actions/workflows/ci.yml)
 
-## What's in it
+A tight senior-engineer toolkit for Claude Code.
+Five skills for when you ask, and one hook for when you don't.
+
+Most plugins are a pile of skills, which means they only help when your wording happens to match a description.
+The hook is the part that works whether or not you remember to invoke anything.
+
+## The hook
+
+`after-edit` runs on `PostToolUse` for `Write`, `Edit`, and `MultiEdit`, and makes two independent checks.
+It nudges; it never blocks.
+
+**Scope.** Trips at 80 lines or 50 KB added in one change, so minified and generated files can't slip past a line count.
+
+**Test-first.** Trips when production code lands and no test in the repo names that file:
+
+```
+[foreman] src/billing/refunds.py just gained 62 lines of production code and this
+repo has tests, but none of them name this file. Write the test that would have
+failed before this change, watch it fail, then confirm it passes now. If the file
+genuinely is not unit-testable (wiring, config, a thin adapter over a library),
+say that in one line and move on.
+```
+
+This is the part a skill cannot do.
+A skill fires on description match or an explicit `/tdd`, so if you never say the word "test", nothing intervenes while a few hundred untested lines get written.
+The skill is *how* to do TDD; the hook is *did you*.
+
+It is built to stay quiet, because a nudge you learn to ignore is worse than no nudge:
+
+- Silent in a repo with no tests at all. That's a different conversation, and not one a hook should start.
+- Silent outside a git repo, and silent for paths outside the repo you're working in.
+- Silent for `tests/`, `spec/`, `__tests__/`, `*_test.go`, `FooTest.java` and friends, so writing the test is never flagged for lacking a test.
+- Silent for `node_modules`, `vendor`, `dist`, `build`, `migrations`, `generated`, `*.d.ts`, `*.min.*`.
+- Silent under 10 changed lines. A tweak is not a missing test.
+- One nudge per file per session. Repetition just trains the model to tune it out.
+
+## The skills
 
 | Command | Skill | What it does |
 |---|---|---|
@@ -13,13 +48,7 @@ Five skills, one hook, no filler: TDD, code review, security audits, performance
 | `/perf` | `perf` | Measure first, then N+1 queries and missing indexes before anything clever |
 | `/docs` | `docs` | READMEs, API docs, ADRs, runbooks, in a human voice |
 
-Each skill also auto-triggers without the slash command when its `description` matches what you asked for.
-
-One hook runs underneath:
-
-**`scope-check`** (`PostToolUse` on `Write`, `Edit`, `MultiEdit`) estimates how much a change added and nudges, never blocks, when a diff outgrew its task.
-It trips at 80 lines or 50 KB, so minified and generated files do not sneak past a line count.
-It reports through `hookSpecificOutput.additionalContext`, because bare stdout on `PostToolUse` lands in the transcript where the agent never reads it.
+Each also auto-triggers without the slash command when its `description` matches what you asked for.
 
 ## Install
 
@@ -38,7 +67,25 @@ From a local checkout instead:
 Send those as two separate prompts, then restart the session so the hook registers.
 Skills and commands hot-reload; hooks do not.
 
-`scope-check` needs `python3` and `bash` on PATH. If either is missing the hook exits quietly rather than erroring.
+`after-edit` needs `bash` and `python3` on PATH, and uses `git` when available.
+If any of them is missing it exits quietly rather than erroring.
+
+## Configuring
+
+Every knob is an environment variable, because editing the script in place gets overwritten the next time the plugin updates.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `FOREMAN_LINE_THRESHOLD` | `80` | Lines added before the scope check speaks up |
+| `FOREMAN_BYTE_THRESHOLD` | `50000` | Bytes added before the scope check speaks up |
+| `FOREMAN_TEST_FIRST_MIN_LINES` | `10` | Lines added before a missing test is worth mentioning |
+| `FOREMAN_SCOPE_CHECK` | on | Set to `off` to disable the scope check |
+| `FOREMAN_TEST_FIRST` | on | Set to `off` to disable the test-first check |
+
+Also worth knowing:
+
+- **How eagerly a skill fires**: the `description` in its `SKILL.md` frontmatter is the entire matching surface. Tighten it to fire less, add trigger phrases to fire more.
+- **Adding a skill**: create `skills/<name>/SKILL.md`, and `commands/<name>.md` if you want a slash command. Both are auto-discovered, no manifest entry needed. Commands must be `.md`; Claude Code does not read `.toml`.
 
 ## Uninstall
 
@@ -46,9 +93,9 @@ Skills and commands hot-reload; hooks do not.
 /plugin uninstall foreman@foreman
 ```
 
-## Why five
+## Why only five skills
 
-Each skill covers a distinct phase of shipping: test it, review it, secure it, make it fast, document it.
+Each one covers a distinct phase of shipping: test it, review it, secure it, make it fast, document it.
 That is deliberately the whole list.
 
 Every skill's `name` and `description` is loaded into every session, while its body only loads when the skill fires.
@@ -56,25 +103,27 @@ So the cost of a skill you never invoke is paid on every single prompt, forever.
 A plugin with thirty skills is a plugin whose descriptions are a coin flip to match, which is how you end up with a toolbox nobody reaches into.
 
 There is deliberately no lean-build or anti-over-engineering skill here.
-[ponytail](https://github.com/DietrichGebert/ponytail) already does that, as an always-on hook, and running two overlapping rulesets costs double the tokens to say the same thing twice.
-The one piece foreman keeps is `scope-check`, because a diff-size nudge is additive rather than a second opinion.
+[ponytail](https://github.com/DietrichGebert/ponytail) already does that as an always-on hook, and running two overlapping rulesets costs double the tokens to say the same thing twice.
 What survived from that idea lives in `skills/review/SKILL.md` under "cuts that are never acceptable": validation, error handling, security checks, and accessibility are never what you trade away to make a diff smaller.
-
-## Customizing
-
-- **Nudge thresholds**: `LINE_THRESHOLD` and `BYTE_THRESHOLD` in `hooks/scope-check.sh`.
-- **How eagerly a skill fires**: the `description` in its `SKILL.md` frontmatter is the entire matching surface. Tighten it to fire less, add trigger phrases to fire more.
-- **Adding a skill**: copy `skills/<name>/SKILL.md`, and add `commands/<name>.md` if you want a slash command. Both are auto-discovered, no manifest entry needed. Commands must be `.md`; Claude Code does not read `.toml`.
 
 ## Development
 
 ```bash
-bash tests/test-scope-check.sh   # 9 hook cases, no framework
+bash tests/test-after-edit.sh    # 25 hook cases, no framework
 claude plugin details foreman    # what actually got discovered, and its token cost
 claude plugin eval               # scores /review against a fixture with six seeded defects
 ```
 
-`tests/test-scope-check.sh` covers the cases that were real bugs: a 2 MB write that used to abort the hook with `exit 126` by blowing `ARG_MAX`, a `MultiEdit` batch that used to slip through the matcher, and a 300 KB single-line file that a line count scored as one line.
+Every case in `tests/test-after-edit.sh` either caught a real bug or guards one that was fixed:
+
+- A 2 MB write that used to abort the hook with `exit 126` by blowing `ARG_MAX`, because the payload went through argv instead of stdin.
+- A `MultiEdit` batch that slipped through a `Write|Edit` matcher.
+- A 300 KB single-line file that a line count scored as one line.
+- A scratch file in `/tmp` being judged against the tests of whatever repo you happened to be in.
+- `latest.py` being miscounted as a test file, which would make an untested repo look tested.
+- A dedupe marker that leaked across runs, so the dedupe cases passed once and then failed forever.
+
+CI additionally refuses a dangling reference to a skill or hook script that does not exist, which is how v0.1.0 shipped two skills still pointing at a `lean` helper that had been deleted.
 
 ## License
 

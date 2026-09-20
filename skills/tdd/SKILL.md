@@ -29,7 +29,12 @@ Don't try to blanket the file. Characterize current behavior with a few tests fi
 
 ## What this skill does not do
 
-It doesn't decide *what* to build, that's the task at hand, it governs *how* the code gets built once you know. Pair with the `lean` skill: the "green" step should reach for the smallest solution on the lean ladder, not the most general one.
+It doesn't decide *what* to build, that's the task at hand, it governs *how* the code gets built once you know.
+The "green" step should reach for the smallest thing that passes, not the most general one: the next test can force generality when it actually exists.
+
+It also doesn't have to be invoked to be enforced.
+The `after-edit` hook watches for production code landing in a repo that tests itself with no test naming the file, and says so at the moment it happens.
+The hook catches the omission; this skill is how you fix it.
 
 ## Anti-patterns to avoid
 
