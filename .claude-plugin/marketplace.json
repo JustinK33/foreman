@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "foreman",
+  "owner": {
+    "name": "Justin Kong",
+    "url": "https://github.com/JustinK33"
+  },
+  "description": "A tight senior-engineer toolkit for Claude Code.",
+  "plugins": [
+    {
+      "name": "foreman",
+      "source": "./",
+      "description": "TDD, code review, security and performance audits, documentation that doesn't read like AI wrote it, and a nudge when a diff outgrows its task.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Justin Kong"
+      },
+      "homepage": "https://github.com/JustinK33/foreman",
+      "repository": "https://github.com/JustinK33/foreman",
+      "license": "MIT",
+      "keywords": ["tdd", "code-review", "security", "performance", "documentation", "senior-engineer"]
+    }
+  ]
+}

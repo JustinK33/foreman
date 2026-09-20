@@ -1,0 +1,13 @@
+{
+  "name": "foreman",
+  "version": "0.1.0",
+  "description": "A tight senior-engineer toolkit: TDD, code review, security and performance audits, documentation that doesn't read like AI wrote it, and a nudge when a diff outgrows its task.",
+  "author": {
+    "name": "Justin Kong",
+    "url": "https://github.com/JustinK33"
+  },
+  "homepage": "https://github.com/JustinK33/foreman",
+  "repository": "https://github.com/JustinK33/foreman",
+  "license": "MIT",
+  "keywords": ["tdd", "code-review", "security", "performance", "documentation", "senior-engineer"]
+}

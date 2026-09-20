@@ -1,0 +1,18 @@
+{
+  "description": "Foreman lifecycle hooks: flag oversized diffs right after they're written.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v bash >/dev/null 2>&1 && bash \"${CLAUDE_PLUGIN_ROOT}/hooks/scope-check.sh\" || exit 0",
+            "commandWindows": "if (Get-Command bash -ErrorAction SilentlyContinue) { bash \"$env:CLAUDE_PLUGIN_ROOT/hooks/scope-check.sh\" }",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

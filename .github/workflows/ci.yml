@@ -1,0 +1,81 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hook behaviour
+        run: bash tests/test-scope-check.sh
+
+      - name: Manifests are valid JSON and agree on version
+        run: |
+          python3 -c '
+          import json
+          plugin = json.load(open(".claude-plugin/plugin.json"))
+          market = json.load(open(".claude-plugin/marketplace.json"))
+          entry = next(p for p in market["plugins"] if p["name"] == plugin["name"])
+          assert entry.get("version") == plugin["version"], "version mismatch between manifests"
+          print("ok:", plugin["name"], plugin["version"])
+          '
+
+      - name: Every skill has name and description, name matches its directory
+        run: |
+          python3 -c '
+          import pathlib, sys
+          bad = []
+          for skill in sorted(pathlib.Path("skills").iterdir()):
+              path = skill / "SKILL.md"
+              if not path.is_file():
+                  bad.append(skill.name + ": no SKILL.md")
+                  continue
+              lines = path.read_text().splitlines()
+              if not lines or lines[0].strip() != "---":
+                  bad.append(skill.name + ": no frontmatter")
+                  continue
+              end = lines.index("---", 1)
+              fields = {}
+              for line in lines[1:end]:
+                  if ":" in line and not line.startswith(" "):
+                      key, value = line.split(":", 1)
+                      fields[key.strip()] = value.strip()
+              if fields.get("name") != skill.name:
+                  bad.append(skill.name + ": frontmatter name is " + repr(fields.get("name")))
+              if not fields.get("description"):
+                  bad.append(skill.name + ": empty description")
+          if bad:
+              sys.exit("\n".join(bad))
+          print("ok: all skills valid")
+          '
+
+      - name: Commands are .md, and each has a matching skill
+        run: |
+          python3 -c '
+          import pathlib, sys
+          skills = {p.name for p in pathlib.Path("skills").iterdir() if p.is_dir()}
+          stray = [p.name for p in pathlib.Path("commands").iterdir() if p.suffix != ".md"]
+          if stray:
+              sys.exit("Claude Code only loads .md commands, found: " + str(stray))
+          commands = list(pathlib.Path("commands").glob("*.md"))
+          orphans = [p.stem for p in commands if p.stem not in skills]
+          if orphans:
+              sys.exit("commands with no matching skill: " + str(orphans))
+          print("ok:", len(skills), "skills,", len(commands), "commands")
+          '
+
+      - name: No em dashes, no placeholders
+        run: |
+          ! grep -rn '—' --include='*.md' --include='*.json' --include='*.sh' .
+          ! grep -rn 'Your Name' --include='*.md' --include='*.json' .
+
+      - name: Hook scripts are executable and pass shellcheck
+        run: |
+          test -x hooks/scope-check.sh || { echo "hooks/scope-check.sh is not executable"; exit 1; }
+          test -x tests/test-scope-check.sh || { echo "tests/test-scope-check.sh is not executable"; exit 1; }
+          shellcheck hooks/scope-check.sh tests/test-scope-check.sh
