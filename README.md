@@ -67,6 +67,18 @@ From a local checkout instead:
 Send those as two separate prompts, then restart the session so the hook registers.
 Skills and commands hot-reload; hooks do not.
 
+Pick one of those two, not both.
+They claim the same marketplace name from different sources, so running the second after the first
+fails with `its network source differs from the one declared for it in settings`.
+That is Claude Code refusing to silently repoint a marketplace, not a problem with the plugin.
+To switch, drop the old declaration first:
+
+```
+/plugin marketplace remove foreman
+```
+
+then add the source you want.
+
 `after-edit` needs `bash` and `python3` on PATH, and uses `git` when available.
 If any of them is missing it exits quietly rather than erroring.
 
