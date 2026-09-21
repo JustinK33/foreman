@@ -109,10 +109,43 @@ What survived from that idea lives in `skills/review/SKILL.md` under "cuts that 
 ## Development
 
 ```bash
-bash tests/test-after-edit.sh    # 25 hook cases, no framework
-claude plugin details foreman    # what actually got discovered, and its token cost
-claude plugin eval               # scores /review against a fixture with six seeded defects
+bash tests/test-after-edit.sh                       # 25 hook cases, no framework
+claude plugin details foreman                       # what got discovered, and its token cost
+claude plugin eval . --case tdd-test-before-code    # one eval case, about a minute
+claude plugin eval                                  # all seven, with a no-plugin baseline arm
 ```
+
+### The evals
+
+Seven cases in `evals/`, one per skill plus two that exist to catch the opposite failure.
+
+| Case | Asserts |
+|---|---|
+| `tdd-test-before-code` | The test for `remove_item` appears before `remove_item` does |
+| `review-severity-order` | SQL injection is named, and style nits do not lead |
+| `security-ranks-by-exploitability` | The SSRF is found, not just the obvious hardcoded key |
+| `perf-measures-before-optimizing` | The N+1 is diagnosed before anyone reaches for Redis |
+| `docs-plain-voice` | No "delve", "seamlessly", "leverage", or "in today's fast-paced world" |
+| `no-fire-on-comprehension-question` | "What does this do?" gets an answer, not a red-green-refactor loop |
+| `no-fire-on-a-mechanical-rename` | A rename stays a rename, with no test suite or audit bolted on |
+
+The last two matter as much as the first five.
+A plugin that fires when you didn't ask is worse than one that stays quiet, and a suite of
+only should-fire cases will happily reward a skill that fires at everything.
+
+Each case pairs a judge with at least one mechanical grader, because a judge alone drifts and
+a judge alone is also the expensive half of the bill.
+Four things about the harness are worth knowing before adding a case, each learned by getting
+it wrong first:
+
+- Grader patterns are JavaScript `RegExp`. Inline `(?i)` and `(?s)` throw, so flags belong in `flags:`.
+- The sandbox working directory starts empty, so a fixture file committed to the repo is invisible to the agent under test. Fixture code is inlined into each `prompt.md` instead.
+- A `not_contains` grader passes against an empty response, so no case is built only from negations.
+- A fixture must not describe its own defects. `review-severity-order` originally listed them in a docstring, which graded the agent on reading an answer key.
+
+CI checks all four, so a case that violates one fails before it ever costs a run.
+The full suite is 42 agent runs, which draws throttling, so cases set `timeout_seconds: 600`
+rather than the 300 default. Iterate with `--case`.
 
 Every case in `tests/test-after-edit.sh` either caught a real bug or guards one that was fixed:
 

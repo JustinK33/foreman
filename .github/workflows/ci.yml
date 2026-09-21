@@ -100,10 +100,126 @@ jobs:
           print("ok: no dangling references")
           '
 
+      - name: Eval cases are structurally valid
+        run: |
+          python3 -c '
+          import json, pathlib, re, sys
+          bad = []
+          patterns = []
+          TYPES = {"regex", "tool_order", "tool_used", "file_exists", "llm", "baseline"}
+
+          def frontmatter(path):
+              lines = path.read_text().splitlines()
+              if not lines or lines[0].strip() != "---" or "---" not in lines[1:]:
+                  return None
+              fields = {}
+              for line in lines[1:lines.index("---", 1)]:
+                  if ":" in line and not line.startswith((" ", "\t")):
+                      key, value = line.split(":", 1)
+                      fields[key.strip()] = value.strip().strip("\"")
+              return fields
+
+          cases = [p for p in sorted(pathlib.Path("evals").iterdir()) if p.is_dir() and p.name != "results"]
+          for case in cases:
+              prompt = case / "prompt.md"
+              if not prompt.is_file():
+                  bad.append(case.name + ": no prompt.md")
+                  continue
+              if frontmatter(prompt) is None:
+                  bad.append(case.name + ": prompt.md has no frontmatter")
+              # The eval sandbox cwd starts empty, so a fixture file sitting in the repo is
+              # invisible to the agent, which then invents a shape and fails for the wrong
+              # reason. Fixture code belongs inline in the prompt.
+              body = prompt.read_text()
+              if "fixture/" in body:
+                  bad.append(case.name + ": prompt.md points into fixture/, which the sandbox cwd never contains")
+              # review-severity-order once listed its seeded defects "in the order the review
+              # skill is supposed to surface them" inside the fixture docstring, so the case
+              # graded the agent on reading an answer key.
+              leak = re.search(r"seeded|deliberate|answer key|supposed to surface|this eval|the eval asks", body, re.I)
+              if leak:
+                  bad.append(case.name + ": prompt.md says " + repr(leak.group(0)) + ", which tells the agent what to find")
+              # A fixture for the security skill is full of plausible credentials. None of them
+              # may be shaped like a live one, or a scanner treats the repo as leaking.
+              secret = re.search(r"(sk_live|sk_test|sk-ant|ghp_|AKIA|xoxb)[A-Za-z0-9_-]{12,}", body)
+              if secret and "EXAMPLE" not in secret.group(0):
+                  bad.append(case.name + ": prompt.md contains a credential-shaped literal, mark it EXAMPLE")
+              graders = sorted((case / "graders").glob("*.md"))
+              if not graders:
+                  bad.append(case.name + ": no graders")
+              fronts = [frontmatter(g) or {} for g in graders]
+              if not any(f.get("type") not in (None, "llm", "baseline") for f in fronts):
+                  bad.append(case.name + ": every grader is a judge, add one that checks the outcome mechanically")
+              # A not_contains grader passes against an empty response, so a case built only
+              # from negations scores full marks on a run that timed out having said nothing.
+              # At least one grader has to require something to be present.
+              negations = [
+                  f for f in fronts
+                  if f.get("type") == "regex" and f.get("match", "contains") in ("not_contains", "count:0")
+              ]
+              if fronts and len(negations) == len(fronts):
+                  bad.append(case.name + ": every grader is a negation, so an empty response scores 1.00")
+              for g in graders:
+                  fields = frontmatter(g)
+                  if fields is None:
+                      bad.append(str(g) + ": no frontmatter")
+                      continue
+                  kind = fields.get("type")
+                  if kind not in TYPES:
+                      bad.append(str(g) + ": type is " + repr(kind) + ", expected one of " + str(sorted(TYPES)))
+                      continue
+                  if "negate" in fields:
+                      bad.append(str(g) + ": negate is not a grader key, the negation is match: not_contains")
+                  if kind in ("llm", "baseline"):
+                      continue
+                  if not fields.get("name"):
+                      bad.append(str(g) + ": a " + kind + " grader requires name:")
+                  if kind != "regex":
+                      continue
+                  pattern = fields.get("pattern")
+                  if not pattern:
+                      bad.append(str(g) + ": no pattern")
+                      continue
+                  if re.search(r"\(\?[a-zA-Z]+[):]", pattern):
+                      bad.append(str(g) + ": inline modifier in pattern; the engine is JS RegExp, which rejects them. Use flags:")
+                  flags = fields.get("flags", "")
+                  if not re.fullmatch(r"[dgimsuvy]*", flags):
+                      bad.append(str(g) + ": flags " + repr(flags) + " are not JS RegExp flags (d g i m s u v y)")
+                  match = fields.get("match", "contains")
+                  if match not in ("contains", "not_contains") and not re.fullmatch(r"count:\d+", match):
+                      bad.append(str(g) + ": match is " + repr(match) + ", expected contains | not_contains | count:N")
+                  patterns.append({"file": str(g), "pattern": pattern, "flags": flags})
+
+          pathlib.Path("eval-patterns.json").write_text(json.dumps(patterns))
+          if bad:
+              sys.exit("\n".join(bad))
+          print("ok:", len(cases), "eval cases,", len(patterns), "regex graders")
+          '
+          node -e '
+          const fs = require("fs");
+          const bad = [];
+          for (const g of JSON.parse(fs.readFileSync("eval-patterns.json", "utf8"))) {
+            try { new RegExp(g.pattern, g.flags) } catch (e) { bad.push(g.file + ": " + e.message) }
+          }
+          if (bad.length) { console.error(bad.join("\n")); process.exit(1) }
+          console.log("ok: every grader pattern compiles as a JS RegExp");
+          '
+          rm eval-patterns.json
+
       - name: No em dashes, no placeholders
         run: |
-          ! grep -rn '—' --include='*.md' --include='*.json' --include='*.sh' .
-          ! grep -rn 'Your Name' --include='*.md' --include='*.json' .
+          # Written as `if grep` rather than `! grep`, because bash -e does not abort on a
+          # command whose status is inverted with `!`, and only the last line of a run block
+          # decides the step. The `!` form let an em dash through every build.
+          status=0
+          if grep -rn '—' --include='*.md' --include='*.json' --include='*.sh' --exclude-dir=results .; then
+            echo "^ em dash found, use a plain dash"; status=1
+          fi
+          if grep -rn 'Your Name' --include='*.md' --include='*.json' .; then
+            echo "^ placeholder author left in a manifest"; status=1
+          fi
+          test "$status" -eq 0 && echo "ok: no em dashes, no placeholders"
+          exit "$status"
 
       - name: Hook scripts are executable and pass shellcheck
         run: |
