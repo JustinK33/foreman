@@ -40,15 +40,16 @@ It is built to stay quiet, because a nudge you learn to ignore is worse than no 
 
 ## The skills
 
-| Command | Skill | What it does |
-|---|---|---|
-| `/tdd` | `tdd` | Strict red-green-refactor loop, no production code ahead of a test |
-| `/review` | `review` | Correctness, then tests, security, design, readability, perf, in that order |
-| `/security` | `security` | Vulnerability scan by exploit frequency, front end and back end |
-| `/perf` | `perf` | Measure first, then N+1 queries and missing indexes before anything clever |
-| `/docs` | `docs` | READMEs, API docs, ADRs, runbooks, in a human voice |
+| Skill | What it does |
+|---|---|
+| `/tdd` | Strict red-green-refactor loop, no production code ahead of a test |
+| `/review` | Correctness, then tests, security, design, readability, perf, in that order |
+| `/security` | Vulnerability scan by exploit frequency, front end and back end |
+| `/perf` | Measure first, then N+1 queries and missing indexes before anything clever |
+| `/docs` | READMEs, API docs, ADRs, runbooks, in a human voice |
 
 Each also auto-triggers without the slash command when its `description` matches what you asked for.
+Arguments pass straight through: `/review 1234`, `/perf GET /reports`.
 
 ## Install
 
@@ -65,7 +66,7 @@ From a local checkout instead:
 ```
 
 Send those as two separate prompts, then restart the session so the hook registers.
-Skills and commands hot-reload; hooks do not.
+Skills hot-reload; hooks do not.
 
 Pick one of those two, not both.
 They claim the same marketplace name from different sources, so running the second after the first
@@ -97,7 +98,7 @@ Every knob is an environment variable, because editing the script in place gets 
 Also worth knowing:
 
 - **How eagerly a skill fires**: the `description` in its `SKILL.md` frontmatter is the entire matching surface. Tighten it to fire less, add trigger phrases to fire more.
-- **Adding a skill**: create `skills/<name>/SKILL.md`, and `commands/<name>.md` if you want a slash command. Both are auto-discovered, no manifest entry needed. Commands must be `.md`; Claude Code does not read `.toml`.
+- **Adding a skill**: create `skills/<name>/SKILL.md`. It is auto-discovered, no manifest entry needed, and `/foreman:<name>` works from the slash menu on its own. Do not also add a `commands/<name>.md`; Claude Code lists commands and skills separately, so the name would appear twice.
 
 ## Uninstall
 

@@ -1,6 +1,6 @@
 {
   "name": "foreman",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A tight senior-engineer toolkit: TDD, code review, security and performance audits, documentation that doesn't read like AI wrote it, and a hook that speaks up when a diff outgrows its task or production code lands without a test.",
   "author": {
     "name": "Justin Kong",

@@ -54,20 +54,16 @@ jobs:
           print("ok: all skills valid")
           '
 
-      - name: Commands are .md, and each has a matching skill
+      - name: No commands/ directory
         run: |
-          python3 -c '
-          import pathlib, sys
-          skills = {p.name for p in pathlib.Path("skills").iterdir() if p.is_dir()}
-          stray = [p.name for p in pathlib.Path("commands").iterdir() if p.suffix != ".md"]
-          if stray:
-              sys.exit("Claude Code only loads .md commands, found: " + str(stray))
-          commands = list(pathlib.Path("commands").glob("*.md"))
-          orphans = [p.stem for p in commands if p.stem not in skills]
-          if orphans:
-              sys.exit("commands with no matching skill: " + str(orphans))
-          print("ok:", len(skills), "skills,", len(commands), "commands")
-          '
+          # Claude Code lists plugin commands and plugin skills as separate / entries, so a
+          # commands/tdd.md alongside skills/tdd showed every command twice in the menu.
+          # Skills are slash-invocable on their own; the wrapper only bought an argument-hint.
+          test ! -e commands || {
+            echo "commands/ duplicates every skill in the / menu, put the prompt in skills/<name>/SKILL.md"
+            exit 1
+          }
+          echo "ok: no duplicate command entries"
 
       - name: Docs and hooks only reference things that exist
         run: |
