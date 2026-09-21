@@ -111,8 +111,8 @@ What survived from that idea lives in `skills/review/SKILL.md` under "cuts that 
 ```bash
 bash tests/test-after-edit.sh                       # 25 hook cases, no framework
 claude plugin details foreman                       # what got discovered, and its token cost
-claude plugin eval . --case tdd-test-before-code    # one eval case, about a minute
-claude plugin eval                                  # all seven, with a no-plugin baseline arm
+claude plugin eval . --case tdd-test-before-code    # one case, about a minute, ~$0.20
+claude plugin eval                                  # all 42 runs: hours, ~$3, and see below first
 ```
 
 ### The evals
@@ -144,8 +144,20 @@ it wrong first:
 - A fixture must not describe its own defects. `review-severity-order` originally listed them in a docstring, which graded the agent on reading an answer key.
 
 CI checks all four, so a case that violates one fails before it ever costs a run.
-The full suite is 42 agent runs, which draws throttling, so cases set `timeout_seconds: 600`
-rather than the 300 default. Iterate with `--case`.
+
+Work one case at a time with `--case`.
+That is the supported way to use this suite, not a workaround for it.
+The full run is 42 agent runs issued serially, and a burst that long draws API stalling: in one
+measured run, 15 of the 42 stalled, and the whole thing took four and a half hours to produce
+$2.86 of mostly nothing. Cases set `timeout_seconds: 600` because a few legitimately need longer
+than the 300 default, not because a higher ceiling prevents the stalling. It does not.
+
+Which means a red score is not automatically a regression, and that distinction is not guessable.
+Open `evals/results/<stamp>/aggregate-result.json` and look at the run before believing it:
+
+- `turns: 0`, or a `durationSeconds` well past the case's limit, is a stalled run. It did no work and says nothing about the plugin. The worst one observed spent 1075 seconds to complete zero turns.
+- A real failure has a healthy turn count and a duration inside the limit. For scale, healthy runs here finish in 9 to 77 seconds.
+- A stall can read as a *pass* just as easily. A `not_contains` grader is satisfied by the empty response a stalled run returns.
 
 Every case in `tests/test-after-edit.sh` either caught a real bug or guards one that was fixed:
 
