@@ -3,3 +3,4 @@
 
 # `claude plugin eval` writes a timestamped report per run.
 evals/results/
+__pycache__/

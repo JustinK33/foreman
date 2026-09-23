@@ -43,17 +43,37 @@ mkdir -p "$JAVA_REPO/src"
 : > "$JAVA_REPO/src/InvoiceTest.java"
 git -C "$JAVA_REPO" add -A
 
+# Every test lives in one file named after nothing in particular, which is the
+# common real-world layout that a filename-only check can never satisfy.
+fixture && SHARED_TEST_REPO="$return_dir"
+mkdir -p "$SHARED_TEST_REPO/app" "$SHARED_TEST_REPO/tests"
+: > "$SHARED_TEST_REPO/app/refunds.py"
+: > "$SHARED_TEST_REPO/app/untouched.py"
+printf 'from app.refunds import issue\n\ndef test_issue():\n    assert issue()\n' \
+  > "$SHARED_TEST_REPO/tests/test_suite.py"
+git -C "$SHARED_TEST_REPO" add -A
+
+# A snake_case module whose test file is kebab-case, and vice versa.
+fixture && SEPARATOR_REPO="$return_dir"
+mkdir -p "$SEPARATOR_REPO/src" "$SEPARATOR_REPO/tests"
+: > "$SEPARATOR_REPO/src/after_edit.py"
+: > "$SEPARATOR_REPO/tests/test-after-edit.sh"
+git -C "$SEPARATOR_REPO" add -A
+
 NOT_A_REPO="$(mktemp -d)"
 
-# Usage: check <name> <expect: silent|scope|test|both> <cwd> <python-json-expr>
+# Usage: check <name> <expect: silent | any + combination of scope test comment> <cwd> <payload>
 # The python expression reads sys.argv[1] for the cwd to report in the payload.
 check() {
   local name="$1" expect="$2" cwd="$3" payload="$4"
-  local out status want_scope=0 want_test=0 got_scope=0 got_test=0
-  # These two strings are the two nudges. Asserting on them stops a case from
-  # passing because the *other* check happened to fire.
+  local out status
+  local want_scope=0 want_test=0 want_comment=0
+  local got_scope=0 got_test=0 got_comment=0
+  # One string per nudge. Asserting on them stops a case from passing because
+  # a *different* check happened to fire.
   local scope_marker='Quick gut check'
   local test_marker='Write the test that would have failed'
+  local comment_marker='read as narration'
 
   out="$(python3 -c "$payload" "$cwd" | bash "$HOOK" 2>/dev/null)"
   status=$?
@@ -75,11 +95,15 @@ check() {
     return
   fi
 
-  case "$expect" in
-    scope) want_scope=1 ;;
-    test) want_test=1 ;;
-    both) want_scope=1; want_test=1 ;;
-  esac
+  local part
+  for part in ${expect//+/ }; do
+    case "$part" in
+      scope) want_scope=1 ;;
+      test) want_test=1 ;;
+      comment) want_comment=1 ;;
+      *) echo "  FAIL  $name: unknown expectation $part"; fail=$((fail + 1)); return ;;
+    esac
+  done
 
   # The nudge only reaches the model through additionalContext.
   if ! printf '%s' "$out" | grep -q 'additionalContext'; then
@@ -90,9 +114,11 @@ check() {
 
   printf '%s' "$out" | grep -qF "$scope_marker" && got_scope=1
   printf '%s' "$out" | grep -qF "$test_marker" && got_test=1
+  printf '%s' "$out" | grep -qF "$comment_marker" && got_comment=1
 
-  if [ "$got_scope" -ne "$want_scope" ] || [ "$got_test" -ne "$want_test" ]; then
-    echo "  FAIL  $name: wanted scope=$want_scope test=$want_test, got scope=$got_scope test=$got_test"
+  if [ "$got_scope$got_test$got_comment" != "$want_scope$want_test$want_comment" ]; then
+    echo "  FAIL  $name: wanted scope=$want_scope test=$want_test comment=$want_comment," \
+         "got scope=$got_scope test=$got_test comment=$got_comment"
     fail=$((fail + 1))
     return
   fi
@@ -134,6 +160,24 @@ check "empty stdin stays silent" silent "" 'import sys;print("", end="")'
 # An unmatched tool should do nothing even if the matcher ever widens.
 check "unknown tool stays silent" silent "" \
   'import json,sys;print(json.dumps({"tool_name":"Bash","cwd":sys.argv[1],"tool_input":{"command":"ls"}}))'
+
+# Regression: the scope check had no file-type filter, so it fired on any long
+# Write. "Could a stdlib call have covered this" is nonsense about a README, and
+# a long doc is the most common large Write there is.
+check "long markdown stays silent" silent "" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"/tmp/README.md","content":"x\n"*200}}))'
+
+check "long yaml stays silent" silent "" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"/tmp/ci.yml","content":"x\n"*200}}))'
+
+# A lockfile is not a design decision anybody chose the length of.
+check "lockfile stays silent" silent "" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"/tmp/yarn.lock","content":"x\n"*400}}))'
+
+# But the byte threshold still has to catch a minified blob, which is the whole
+# reason it exists alongside the line count.
+check "minified bundle still nudges" scope "" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"/tmp/app.min.js","content":"x"*300000}}))'
 
 echo
 echo "test-first"
@@ -181,8 +225,75 @@ check "markdown stays silent" silent "$TESTED_REPO" \
   'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"docs/orphan.md","content":"x\n"*40}}))'
 
 # Both checks can fire on one edit, and the nudges must combine, not compete.
-check "big untested file gets both notes" both "$TESTED_REPO" \
+check "big untested file gets both notes" scope+test "$TESTED_REPO" \
   'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/orphan.py","content":"x\n"*120}}))'
+
+# Regression: matching was filename-only, so a repo whose tests all live in one
+# tests/test_suite.py satisfied no source file and got nudged forever. The file
+# is imported by name in that suite, which is the question worth asking.
+check "shared test file that imports the module stays silent" silent "$SHARED_TEST_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"app/refunds.py","content":"x\n"*40}}))'
+
+# Same repo, a module no test mentions at all. Still has to nudge, or the grep
+# fallback has just silenced the check everywhere.
+check "module no test mentions still nudges" test "$SHARED_TEST_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"app/untouched.py","content":"x\n"*40}}))'
+
+# after_edit.py is tested by test-after-edit.sh. Separators are not a reason to
+# call something untested; this fired on foreman'"'"'s own hook while writing it.
+check "kebab-case test covers a snake_case module" silent "$SEPARATOR_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/after_edit.py","content":"x\n"*40}}))'
+
+# Stacks that used to be invisible read as the hook being broken.
+check "svelte component nudges" test "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/Widget.svelte","content":"x\n"*40}}))'
+
+check "shell script nudges" test "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/deploy.sh","content":"x\n"*40}}))'
+
+echo
+echo "comments"
+
+# The wiring, not the patterns: tests/test-comment-style.sh owns those. What
+# these prove is that the payload reaches the scanner and the note comes back.
+# billing.py has a test, so test-first is silent and the comment note is alone.
+check "narrated comments nudge" comment "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/billing.py","content":"# Imports\nimport os\n\n# Increment the counter\ncounter += 1\n"}}))'
+
+# Two thresholds apply at once here and they are independent: 40 lines is over
+# the test-first minimum and under the scope one.
+check "both notes on an untested narrated file" test+comment "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/orphan.py","content":"# Imports\nimport os\n\n# Increment the counter\ncounter += 1\n" + "x\n"*40}}))'
+
+# An Edit is judged on what it added. Comments already in the file are not this
+# edit'"'"'s to answer for, and old_string is where they would leak in from.
+check "an Edit is judged on new_string only" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Edit","cwd":sys.argv[1],"tool_input":{"file_path":"src/billing.py","old_string":"# Imports\nimport os\n# Increment the counter\ncounter += 1","new_string":"import os\ncounter += 1"}}))'
+
+# One quibble is a style opinion, not a nudge.
+check "a single finding stays silent" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/billing.py","content":"# Imports\nimport os\n"}}))'
+
+# Comments in prose and config are not code comments, and generated code is
+# nobody'"'"'s to rewrite.
+check "narration in markdown stays silent" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/notes.md","content":"# Imports\nimport os\n\n# Increment the counter\ncounter += 1\n"}}))'
+
+check "narration in vendored code stays silent" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"node_modules/x/index.js","content":"// Imports\nimport os\n\n// Increment the counter\ncounter += 1\n"}}))'
+
+FOREMAN_COMMENT_CHECK=off \
+  check "FOREMAN_COMMENT_CHECK=off silences it" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/billing.py","content":"# Imports\nimport os\n\n# Increment the counter\ncounter += 1\n"}}))'
+
+# The comment note has its own marker, so it is not silenced by having already
+# said something different about the same file.
+check "test-first fires first for a file" test "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","session_id":"two-notes","cwd":sys.argv[1],"tool_input":{"file_path":"src/orphan.py","content":"x\n"*40}}))'
+check "and the comment note still fires after it" comment "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","session_id":"two-notes","cwd":sys.argv[1],"tool_input":{"file_path":"src/orphan.py","content":"# Imports\nimport os\n\n# Increment the counter\ncounter += 1\n"}}))'
+check "but only once per file per session" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","session_id":"two-notes","cwd":sys.argv[1],"tool_input":{"file_path":"src/orphan.py","content":"# Helpers\ndef f(): pass\n\n# Return the total\nreturn total\n"}}))'
 
 echo
 echo "config and dedupe"
@@ -205,6 +316,21 @@ FOREMAN_LINE_THRESHOLD=10 \
 FOREMAN_SCOPE_CHECK=off \
   check "FOREMAN_SCOPE_CHECK=off silences it" silent "" \
   'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"/tmp/a.py","content":"x\n"*100}}))'
+
+# One switch for all of it, because that is what someone reaches for first, and
+# both spellings work because both are what they will try.
+FOREMAN_OFF=1 \
+  check "FOREMAN_OFF=1 silences everything" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/orphan.py","content":"x\n"*120}}))'
+
+FOREMAN_OFF=on \
+  check "FOREMAN_OFF=on silences everything" silent "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/orphan.py","content":"x\n"*120}}))'
+
+# Covering one more stack must never require forking the script.
+FOREMAN_SOURCE_EXTENSIONS=.tf \
+  check "FOREMAN_SOURCE_EXTENSIONS adds a stack" test "$TESTED_REPO" \
+  'import json,sys;print(json.dumps({"tool_name":"Write","cwd":sys.argv[1],"tool_input":{"file_path":"src/network.tf","content":"x\n"*40}}))'
 
 echo
 echo "$pass passed, $fail failed"

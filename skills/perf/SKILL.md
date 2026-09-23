@@ -1,11 +1,20 @@
 ---
 name: perf
-description: Use when the user asks to improve performance, find bottlenecks, optimize the backend, or speed something up. Also trigger on "/perf".
+description: Use when the user asks to improve performance, find bottlenecks, optimize the backend, or speed something up. Also trigger on "/foreman:perf" or "/perf".
+argument-hint: "[endpoint, function, or path]"
 ---
 
 # Performance Review
 
 Measure before you change anything, and change the thing that's actually slow, not the thing that's easiest to rewrite.
+
+## What to look at
+
+`$ARGUMENTS`, when that is not empty. It is usually an endpoint (`GET /reports`), a function name, or a
+path. Find the code that serves it before theorizing about it.
+
+With no argument, ask what is slow. "Optimize this codebase" has no measurable answer, and guessing at
+one is how you spend a day on a function called once at startup.
 
 ## Method
 

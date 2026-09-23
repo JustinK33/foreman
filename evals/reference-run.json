@@ -1,0 +1,1028 @@
+{
+  "_comment": [
+    "A real full-suite run, trimmed and committed so the stall-detection advice in the",
+    "README has something to point at. evals/results/ is gitignored, so without this a",
+    "contributor reading 'open the aggregate and look at turns' has no example.",
+    "Read at face value this run says foreman makes documentation worse. It does not:",
+    "24 of the 42 runs timed out, including all three with-plugin docs-plain-voice runs,",
+    "and the graders scored the empty responses. See the evals section of the README.",
+    "Dropped from the original: costs, promptMarkdown, and tracePath, which held",
+    "absolute paths into a /tmp sandbox that no longer exists.",
+    "Grader `evidence` is truncated to 180 characters; it held whole agent responses."
+  ],
+  "source": "evals/results/2026-09-20T19-32-01-739Z/aggregate-result.json",
+  "claudeVersion": "2.1.278",
+  "startedAt": "2026-09-20T19:32:01.739Z",
+  "durationSeconds": 16243,
+  "costUsd": 2.86,
+  "cases": [
+    {
+      "name": "docs-plain-voice",
+      "timeoutSeconds": 300,
+      "runsPerCase": 3,
+      "aggregates": {
+        "score": 0.5,
+        "passRate": 0,
+        "scoreWithout": 0.8333333333333334,
+        "passRateWithout": 0.6666666666666666,
+        "delta": -0.33333333333333337
+      },
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 1035,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "documentation-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "no-ai-tells",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 1075,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "documentation-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "no-ai-tells",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 915,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "documentation-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "no-ai-tells",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 2,
+            "durationSeconds": 595,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "documentation-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "no-ai-tells",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "durationSeconds": 546,
+            "error": null,
+            "graders": [
+              {
+                "name": "documentation-quality",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "No README exists in this repo yet, so here's the section as markdown \u2014 say the word and I'll drop it into `README.md` at whatever heading level fits.\n\n---\n\n## `retry`\n\nA decorator [...truncated]"
+              },
+              {
+                "name": "no-ai-tells",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "durationSeconds": 48,
+            "error": null,
+            "graders": [
+              {
+                "name": "documentation-quality",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "The repo is empty (no README or source file yet), so here's the section itself \u2014 drop it in wherever the helper lands.\n\n---\n\n## `retry`\n\nRetries a callable when it fails with a *tr [...truncated]"
+              },
+              {
+                "name": "no-ai-tells",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "no-fire-on-a-mechanical-rename",
+      "timeoutSeconds": 300,
+      "runsPerCase": 3,
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0.8333333333333334,
+        "passRateWithout": 0.6666666666666666,
+        "delta": 0.16666666666666663
+      },
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "durationSeconds": 23,
+            "error": null,
+            "graders": [
+              {
+                "name": "no-unrequested-work",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              },
+              {
+                "name": "nothing-else",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "```python\n\"\"\"A small shopping cart.\"\"\"\n\n\nclass Cart:\n    def __init__(self):\n        self.lines = {}\n\n    def add_item(self, sku, quantity=1, unit_price=0):\n        \"\"\"Adding an ex [...truncated]"
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "durationSeconds": 52,
+            "error": null,
+            "graders": [
+              {
+                "name": "no-unrequested-work",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              },
+              {
+                "name": "nothing-else",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "The file isn't on disk in the working directory, so here's the renamed source:\n\n```python\n\"\"\"A small shopping cart.\"\"\"\n\n\nclass Cart:\n    def __init__(self):\n        self.lines = {} [...truncated]"
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "durationSeconds": 9,
+            "error": null,
+            "graders": [
+              {
+                "name": "no-unrequested-work",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              },
+              {
+                "name": "nothing-else",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "```python\n\"\"\"A small shopping cart.\"\"\"\n\n\nclass Cart:\n    def __init__(self):\n        self.lines = {}\n\n    def add_item(self, sku, quantity=1, unit_price=0):\n        \"\"\"Adding an ex [...truncated]"
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "durationSeconds": 11,
+            "error": null,
+            "graders": [
+              {
+                "name": "no-unrequested-work",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              },
+              {
+                "name": "nothing-else",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "```python\n\"\"\"A small shopping cart.\"\"\"\n\n\nclass Cart:\n    def __init__(self):\n        self.lines = {}\n\n    def add_item(self, sku, quantity=1, unit_price=0):\n        \"\"\"Adding an ex [...truncated]"
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 496,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "no-unrequested-work",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              },
+              {
+                "name": "nothing-else",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "durationSeconds": 24,
+            "error": null,
+            "graders": [
+              {
+                "name": "no-unrequested-work",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              },
+              {
+                "name": "nothing-else",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "```python\n\"\"\"A small shopping cart.\"\"\"\n\n\nclass Cart:\n    def __init__(self):\n        self.lines = {}\n\n    def add_item(self, sku, quantity=1, unit_price=0):\n        \"\"\"Adding an ex [...truncated]"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "no-fire-on-comprehension-question",
+      "timeoutSeconds": 300,
+      "runsPerCase": 3,
+      "aggregates": {
+        "score": 0.5,
+        "passRate": 0,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": 0
+      },
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 75,
+            "error": null,
+            "graders": [
+              {
+                "name": "answers-plainly",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": "Quantities accumulate, but the second call's `unit_price` is silently dropped.\n\n`setdefault` only stores the `{\"qty\": 0, \"unit_price\": unit_price}` dict when the sku is absent. On [...truncated]"
+              },
+              {
+                "name": "stays-a-question",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 437,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "answers-plainly",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "stays-a-question",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 69,
+            "error": null,
+            "graders": [
+              {
+                "name": "answers-plainly",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": "Quantities accumulate, as the docstring says \u2014 but the price does not update, and that's the sharp edge.\n\n`self.lines.setdefault(sku, {...})` only stores the `{\"qty\": 0, \"unit_pric [...truncated]"
+              },
+              {
+                "name": "stays-a-question",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 80,
+            "error": null,
+            "graders": [
+              {
+                "name": "answers-plainly",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": "Quantity accumulates, but the second call's `unit_price` is silently discarded.\n\n`setdefault` only inserts the `{\"qty\": 0, \"unit_price\": unit_price}` dict when the sku is absent. O [...truncated]"
+              },
+              {
+                "name": "stays-a-question",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 19,
+            "error": null,
+            "graders": [
+              {
+                "name": "answers-plainly",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": "Quantities accumulate, but the price does not update \u2014 and that asymmetry is the real behavior worth knowing.\n\n```python\ncart.add_item(\"ABC\", qty=2, unit_price=10)   # -> 2, line = [...truncated]"
+              },
+              {
+                "name": "stays-a-question",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 17,
+            "error": null,
+            "graders": [
+              {
+                "name": "answers-plainly",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": "Quantities accumulate, but the price doesn't.\n\nThe second call finds the existing entry via `setdefault`, so `{\"qty\": 0, \"unit_price\": unit_price}` is built and thrown away \u2014 only [...truncated]"
+              },
+              {
+                "name": "stays-a-question",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "perf-measures-before-optimizing",
+      "timeoutSeconds": 300,
+      "runsPerCase": 3,
+      "aggregates": {
+        "score": 0.7777777777777778,
+        "passRate": 0.6666666666666666,
+        "scoreWithout": 0.5555555555555555,
+        "passRateWithout": 0.3333333333333333,
+        "delta": 0.22222222222222232
+      },
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "durationSeconds": 69,
+            "error": null,
+            "graders": [
+              {
+                "name": "diagnosis-quality",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "No profiling data, query logs, or even a repo to look at \u2014 the working directory (`/private/tmp/e-1YtgyC/home/cwd`) is empty, and the view was pasted inline. So the numbers below a [...truncated]"
+              },
+              {
+                "name": "names-the-n-plus-one",
+                "passed": true,
+                "explanation": "matched n\\s*\\+\\s*1|query per (order|row)|per-(order|row) quer|1801|1800",
+                "evidence": null
+              },
+              {
+                "name": "no-premature-infrastructure",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "durationSeconds": 277,
+            "error": null,
+            "graders": [
+              {
+                "name": "diagnosis-quality",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "No profiling data or query logs in this repo \u2014 the working directory is empty, so the only evidence is the snippet you pasted. Everything below is read off the code and arithmetic, [...truncated]"
+              },
+              {
+                "name": "names-the-n-plus-one",
+                "passed": true,
+                "explanation": "matched n\\s*\\+\\s*1|query per (order|row)|per-(order|row) quer|1801|1800",
+                "evidence": null
+              },
+              {
+                "name": "no-premature-infrastructure",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 3,
+            "durationSeconds": 429,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "diagnosis-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-n-plus-one",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              },
+              {
+                "name": "no-premature-infrastructure",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 532,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "diagnosis-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-n-plus-one",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              },
+              {
+                "name": "no-premature-infrastructure",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0.3333333333333333,
+            "passed": false,
+            "turns": 2,
+            "durationSeconds": 303,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "diagnosis-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-n-plus-one",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              },
+              {
+                "name": "no-premature-infrastructure",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "durationSeconds": 53,
+            "error": null,
+            "graders": [
+              {
+                "name": "diagnosis-quality",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "No `monthly_report` on disk in `/private/tmp/e-crIyCn/home/cwd` (the repo has no `.py` files), so here's the rewrite against the snippet you pasted \u2014 drop it in wherever the real m [...truncated]"
+              },
+              {
+                "name": "names-the-n-plus-one",
+                "passed": true,
+                "explanation": "matched n\\s*\\+\\s*1|query per (order|row)|per-(order|row) quer|1801|1800",
+                "evidence": null
+              },
+              {
+                "name": "no-premature-infrastructure",
+                "passed": true,
+                "explanation": "pattern absent as expected",
+                "evidence": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "review-severity-order",
+      "timeoutSeconds": 300,
+      "runsPerCase": 3,
+      "aggregates": {
+        "score": 0.6666666666666666,
+        "passRate": 0.6666666666666666,
+        "scoreWithout": 0.3333333333333333,
+        "passRateWithout": 0.3333333333333333,
+        "delta": 0.3333333333333333
+      },
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 4,
+            "durationSeconds": 288,
+            "error": null,
+            "graders": [
+              {
+                "name": "criteria",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "No `transfer.py` exists in the repo (`/private/tmp/e-kxzjE7/home/cwd` is an empty git repo), so I reviewed the source you pasted. Line numbers refer to that snippet.\n\n## Verdict\n\nD [...truncated]"
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "durationSeconds": 49,
+            "error": null,
+            "graders": [
+              {
+                "name": "criteria",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "`transfer.py` isn't on disk anywhere I can see \u2014 I reviewed the version pasted in your message, with line numbers from that snippet. Note the file's own docstring says it's a fixtu [...truncated]"
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 2,
+            "durationSeconds": 552,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "criteria",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "durationSeconds": 288,
+            "error": null,
+            "graders": [
+              {
+                "name": "criteria",
+                "passed": true,
+                "explanation": "judge votes: PASS PASS PASS",
+                "evidence": "The file isn't in the repo (working tree is empty), so I reviewed the pasted source directly rather than via a diff target.\n\n## Critical\n\n**1. SQL injection in all three statements [...truncated]"
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "durationSeconds": 355,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "criteria",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 382,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "criteria",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "security-ranks-by-exploitability",
+      "timeoutSeconds": 300,
+      "runsPerCase": 3,
+      "aggregates": {
+        "score": 0,
+        "passRate": 0,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 0
+      },
+      "arms": {
+        "with": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 1,
+            "durationSeconds": 1070,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "audit-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-ssrf",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 357,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "audit-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-ssrf",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 2,
+            "durationSeconds": 335,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "audit-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-ssrf",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 423,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "audit-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-ssrf",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 977,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "audit-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-ssrf",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 406,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "audit-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "names-the-ssrf",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "tdd-test-before-code",
+      "timeoutSeconds": 300,
+      "runsPerCase": 3,
+      "aggregates": {
+        "score": 0,
+        "passRate": 0,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 0
+      },
+      "arms": {
+        "with": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 614,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "loop-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "test-precedes-implementation",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 2,
+            "durationSeconds": 662,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "loop-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": "I'll work this as a red-green loop. First, let me look at the actual files."
+              },
+              {
+                "name": "test-precedes-implementation",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "durationSeconds": 471,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "loop-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "test-precedes-implementation",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 514,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "loop-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "test-precedes-implementation",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "durationSeconds": 957,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "loop-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "test-precedes-implementation",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 0,
+            "durationSeconds": 355,
+            "error": "timed out after 300s",
+            "graders": [
+              {
+                "name": "loop-quality",
+                "passed": false,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "evidence": ""
+              },
+              {
+                "name": "test-precedes-implementation",
+                "passed": false,
+                "explanation": "pattern not found in last_message",
+                "evidence": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

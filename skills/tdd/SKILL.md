@@ -1,6 +1,7 @@
 ---
 name: tdd
-description: Use whenever the user asks to build a feature, fix a bug, or wants strict test-driven development (red-green-refactor). Also trigger on "/tdd", "write the test first", or "TDD this".
+description: Use whenever the user asks to build a feature, fix a bug, or wants strict test-driven development (red-green-refactor). Also trigger on "/foreman:tdd", "/tdd", "write the test first", or "TDD this".
+argument-hint: "[what to build]"
 ---
 
 # Test-Driven Development

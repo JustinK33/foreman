@@ -1,0 +1,20 @@
+# Pinned rather than left to the defaults. CI installs the newest ruff on every
+# run, and `ruff check` with no config selects whatever that version calls
+# default, so a ruff release turns this repo red with nothing in it having
+# changed. That already happened once: the step was added believing the defaults
+# were E4/E7/E9/F and it went red on four rules from outside that set.
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "PL", "FURB", "RUF"]
+ignore = [
+  # Every hook catches everything on purpose, at exactly one place: the payload
+  # parse. A hook that raises writes a traceback where nobody reads it and then
+  # silently stops checking, and the shims exit 0 either way, so narrowing the
+  # except would only change which failures are invisible.
+  "BLE001",
+  # SIM905 wants "a b c".split() written as a list literal, which is right for
+  # three words and wrong for the 180-word stopword and narration lists in
+  # comment_style.py: the autofix produces a single 2000-character line that
+  # nobody can add a word to without a diff nobody can read.
+  "SIM905",
+]

@@ -1,11 +1,20 @@
 ---
 name: review
-description: Use before pushing, opening a PR, or when the user asks to review code, review a diff, or review a pull request. Also trigger on "/review".
+description: Use before pushing, opening a PR, or when the user asks to review code, review a diff, or review a pull request. Also trigger on "/foreman:review" or "/review".
+argument-hint: "[PR number, branch, or path]"
 ---
 
 # Code Review
 
 Review like the senior engineer whose approval actually means something, not the one who rubber-stamps to clear their queue.
+
+## What to review
+
+`$ARGUMENTS`, when that is not empty. A bare number is a PR number, so fetch it with `gh pr view` and
+`gh pr diff`. Anything with a slash or a dot is a path. Otherwise treat it as a branch or a ref and diff
+it against the default branch.
+
+With no argument, review the uncommitted diff, and if the tree is clean, the most recent commit.
 
 ## Order of operations
 

@@ -11,8 +11,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Hook logic imports
+        run: |
+          # The shims always exit 0, so a module-level error in a hook is
+          # completely silent at runtime: the check just stops happening. A
+          # \k<quote> backreference, which is JavaScript and not Python, shipped
+          # exactly that way and every credential sailed through.
+          #
+          # hooks/ goes on sys.path because that is what Python does for free when
+          # it runs a script, and the hooks import foreman_state from beside them.
+          # runpy.run_path does not do it, so without this every module that
+          # imports a sibling fails here and nowhere else.
+          for module in hooks/*.py; do
+            python3 -c "import runpy, sys; sys.path.insert(0, 'hooks'); sys.stdin = open('/dev/null'); runpy.run_path('$module')" \
+              || { echo "$module fails to run"; exit 1; }
+          done
+          echo "ok: every hook module runs"
+
       - name: Hook behaviour
-        run: bash tests/test-after-edit.sh
+        run: |
+          # A glob, not a list: a new suite that CI forgets to run is a suite that
+          # goes green by never executing.
+          for suite in tests/*.sh; do
+            echo "== $suite"
+            bash "$suite" || exit 1
+          done
 
       - name: Manifests are valid JSON and agree on version
         run: |
@@ -58,7 +81,8 @@ jobs:
         run: |
           # Claude Code lists plugin commands and plugin skills as separate / entries, so a
           # commands/tdd.md alongside skills/tdd showed every command twice in the menu.
-          # Skills are slash-invocable on their own; the wrapper only bought an argument-hint.
+          # Skills are slash-invocable on their own, and argument-hint is a supported SKILL.md
+          # frontmatter field, so the wrapper bought nothing the skill cannot declare itself.
           test ! -e commands || {
             echo "commands/ duplicates every skill in the / menu, put the prompt in skills/<name>/SKILL.md"
             exit 1
@@ -208,7 +232,12 @@ jobs:
           # command whose status is inverted with `!`, and only the last line of a run block
           # decides the step. The `!` form let an em dash through every build.
           status=0
-          if grep -rn '—' --include='*.md' --include='*.json' --include='*.sh' --exclude-dir=results .; then
+          # Not *.yml: this file contains the em dash it searches for, so including
+          # its own type here fails every build on the pattern itself.
+          # reference-run.json is a verbatim capture of agent output, not authored
+          # prose. Editing an em dash out of a record would falsify the record.
+          if grep -rn '—' --include='*.md' --include='*.json' --include='*.sh' --include='*.py' \
+               --exclude-dir=results --exclude=reference-run.json .; then
             echo "^ em dash found, use a plain dash"; status=1
           fi
           if grep -rn 'Your Name' --include='*.md' --include='*.json' .; then
@@ -219,6 +248,17 @@ jobs:
 
       - name: Hook scripts are executable and pass shellcheck
         run: |
-          test -x hooks/after-edit.sh || { echo "hooks/after-edit.sh is not executable"; exit 1; }
-          test -x tests/test-after-edit.sh || { echo "tests/test-after-edit.sh is not executable"; exit 1; }
-          shellcheck hooks/after-edit.sh tests/test-after-edit.sh
+          for script in hooks/*.sh tests/*.sh; do
+            test -x "$script" || { echo "$script is not executable"; exit 1; }
+          done
+          shellcheck hooks/*.sh tests/*.sh
+
+      - name: Hook logic lints
+        run: |
+          # The checks used to live in a single-quoted string inside the shell script,
+          # where no linter could reach them. That is the whole reason they moved out.
+          # The rule set is pinned in ruff.toml rather than left to the installed
+          # version's defaults; see the comment there. `ruff format` is deliberately
+          # not enforced: the extension sets are grouped by hand to stay readable.
+          pip install --quiet ruff
+          ruff check hooks/*.py
