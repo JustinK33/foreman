@@ -5,9 +5,10 @@
 #
 # Never exits non-zero: a hook failure is noisier than a missed nudge.
 
-command -v python3 >/dev/null 2>&1 || exit 0
+# python.org installs on Windows ship only `python`.
+PYTHON="$(command -v python3 || command -v python)" || exit 0
 
 # Payload goes over stdin, not argv. A Write of a large file exceeds ARG_MAX
 # (1 MB on macOS) and argv would abort the interpreter with exit 126.
-python3 "$(dirname "${BASH_SOURCE[0]}")/after_edit.py"
+"$PYTHON" "$(dirname "${BASH_SOURCE[0]}")/after_edit.py"
 exit 0

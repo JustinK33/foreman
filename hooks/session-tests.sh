@@ -6,8 +6,9 @@
 #
 # Never exits non-zero. Stop blocks by printing JSON, not by exiting 2.
 
-command -v python3 >/dev/null 2>&1 || exit 0
+# python.org installs on Windows ship only `python`.
+PYTHON="$(command -v python3 || command -v python)" || exit 0
 
 # Payload over stdin, not argv, matching the other hooks.
-python3 "$(dirname "${BASH_SOURCE[0]}")/session_tests.py"
+"$PYTHON" "$(dirname "${BASH_SOURCE[0]}")/session_tests.py"
 exit 0
