@@ -17,6 +17,8 @@ import os
 import re
 import sys
 
+import foreman_state
+
 # Provider-issued credentials. Each has a prefix and a length, so the false
 # positive rate is close to zero.
 PATTERNS = [
@@ -118,11 +120,9 @@ def findings(text):
 
 
 def main():
-    if os.environ.get("FOREMAN_OFF", "").strip():
+    if foreman_state.disabled("FOREMAN_SECRETS"):
         return
     mode = os.environ.get("FOREMAN_SECRETS", "").strip().lower()
-    if mode in ("0", "off", "false", "no"):
-        return
 
     try:
         data = json.loads(sys.stdin.read())

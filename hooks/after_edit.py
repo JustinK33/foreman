@@ -18,7 +18,6 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 import sys
 
 # Resolved from this file's own directory, which Python puts on sys.path when it
@@ -28,24 +27,12 @@ import sys
 import comment_style
 import foreman_state
 
-
-def env_int(name, default):
-    try:
-        return int(os.environ[name])
-    except (KeyError, ValueError):
-        return default
-
-
-def env_off(name):
-    return os.environ.get(name, "").strip().lower() in ("0", "off", "false", "no")
-
-
 # Lines is the headline number, but it misses minified and generated files, so
 # bytes is a second trigger: 300 KB on one line is not a small change.
-LINE_THRESHOLD = env_int("FOREMAN_LINE_THRESHOLD", 80)
-BYTE_THRESHOLD = env_int("FOREMAN_BYTE_THRESHOLD", 50_000)
+LINE_THRESHOLD = foreman_state.env_int("FOREMAN_LINE_THRESHOLD", 80)
+BYTE_THRESHOLD = foreman_state.env_int("FOREMAN_BYTE_THRESHOLD", 50_000)
 # Below this, an untested edit is a tweak, not a missing test.
-TEST_FIRST_MIN_LINES = env_int("FOREMAN_TEST_FIRST_MIN_LINES", 10)
+TEST_FIRST_MIN_LINES = foreman_state.env_int("FOREMAN_TEST_FIRST_MIN_LINES", 10)
 
 SOURCE_EXTENSIONS = {
     ".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".go", ".rs", ".java",
@@ -131,20 +118,6 @@ def inside(path, cwd):
         return False
 
 
-def git(args, cwd):
-    """Tracked-file queries only. Returns [] on anything unexpected, because
-    every caller treats "I could not tell" as "stay quiet"."""
-    try:
-        done = subprocess.run(
-            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5, check=False
-        )
-    except (OSError, subprocess.SubprocessError):
-        return []
-    if done.returncode != 0:
-        return []
-    return done.stdout.splitlines()
-
-
 def referenced_by_a_test(stem, cwd):
     """Does any test file mention this module by name?
 
@@ -161,14 +134,14 @@ def referenced_by_a_test(stem, cwd):
         return False
     # No pathspec: one subprocess, no argv limit, and is_test_path already knows
     # how to recognise a test file.
-    return any(is_test_path(f) for f in git(["grep", "-l", "-F", "-e", stem], cwd))
+    return any(is_test_path(f) for f in foreman_state.git(["grep", "-l", "-F", "-e", stem], cwd))
 
 
 def tracked_tests(cwd):
     """The repo's test files, or [] when it has none, or when this is not a git
     repo at all. A repo with no tests is a different conversation than a missing
     test, and not one a hook should start, so [] means every check goes quiet."""
-    return [f for f in git(["ls-files"], cwd) if is_test_path(f)]
+    return [f for f in foreman_state.git(["ls-files"], cwd) if is_test_path(f)]
 
 
 def missing_test(path, cwd, tests):
@@ -245,7 +218,7 @@ def main():
     notes = []
 
     if (
-        not env_off("FOREMAN_SCOPE_CHECK")
+        not foreman_state.env_off("FOREMAN_SCOPE_CHECK")
         and (lines >= LINE_THRESHOLD or written >= BYTE_THRESHOLD)
         # Only the prose-and-data filter here, deliberately not SKIP_FILE: the
         # byte threshold exists precisely so a minified blob cannot slip past a
@@ -280,12 +253,12 @@ def main():
     if production and tests:
         foreman_state.mark(
             data.get("session_id", ""),
-            "wrote-" + hashlib.sha1(raw_path.encode()).hexdigest(),
+            foreman_state.WROTE + hashlib.sha1(raw_path.encode()).hexdigest(),
             raw_path,
         )
 
     if (
-        not env_off("FOREMAN_TEST_FIRST")
+        not foreman_state.env_off("FOREMAN_TEST_FIRST")
         and production
         and tests
         and missing_test(raw_path, cwd, tests)
@@ -303,7 +276,7 @@ def main():
     # add three comments that say nothing, and that is the whole complaint.
     # Test files are in scope, because they get narrated worst of all.
     if (
-        not env_off("FOREMAN_COMMENT_CHECK")
+        not foreman_state.env_off("FOREMAN_COMMENT_CHECK")
         and extension in SOURCE_EXTENSIONS
         and not SKIP_PATH.search(raw_path)
         and not SKIP_FILE.search(basename)

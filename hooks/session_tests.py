@@ -18,13 +18,11 @@ reason, which is verified to reach the model, so blocking never needs exit 2.
 """
 
 import json
-import os
 import re
 import sys
 
 import foreman_state
 
-RAN = "tests-ran"
 NUDGED = "asked-to-run-tests"
 # How many filenames to name before summarising. Enough to be concrete, few
 # enough that the ask does not turn into a wall of paths.
@@ -69,10 +67,6 @@ TEST_COMMAND = re.compile(
 )
 
 
-def env_off(name):
-    return os.environ.get(name, "").strip().lower() in ("0", "off", "false", "no")
-
-
 def stop(data, session):
     # Two dedupe guards, for two different situations. stop_hook_active covers
     # the immediate re-entry after this hook blocks, which is the case where a
@@ -81,10 +75,10 @@ def stop(data, session):
     # again because the user has since sent another prompt.
     if data.get("stop_hook_active"):
         return
-    if foreman_state.marked(session, RAN) or foreman_state.marked(session, NUDGED):
+    if foreman_state.marked(session, foreman_state.RAN) or foreman_state.marked(session, NUDGED):
         return
 
-    written = [path for path in foreman_state.marks(session, "wrote-") if path]
+    written = [path for path in foreman_state.marks(session, foreman_state.WROTE) if path]
     if not written:
         return
 
@@ -123,7 +117,7 @@ def main():
         foreman_state.clear(session)
         return
 
-    if os.environ.get("FOREMAN_OFF", "").strip() or env_off("FOREMAN_TEST_RUN_CHECK"):
+    if foreman_state.disabled("FOREMAN_TEST_RUN_CHECK"):
         return
 
     if event == "Stop":
@@ -133,7 +127,7 @@ def main():
     if data.get("tool_name") == "Bash":
         command = (data.get("tool_input") or {}).get("command") or ""
         if TEST_COMMAND.search(command):
-            foreman_state.mark(session, RAN)
+            foreman_state.mark(session, foreman_state.RAN)
 
 
 main()

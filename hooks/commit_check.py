@@ -24,35 +24,19 @@ import json
 import os
 import re
 import shlex
-import subprocess
 import sys
 
 import foreman_state
 
-# Set by session_tests.py when it sees a test runner go by, and by after_edit.py
-# for each production file written. Read here, so the two have to agree.
-RAN = "tests-ran"
-WROTE = "wrote-"
-# Written here.
+# Written here. The tests-ran and wrote- markers it reads live in foreman_state.
 REVIEWED = "read-the-diff"
 ASKED_TO_TEST = "asked-to-test-before-commit"
 ASKED_TO_REVIEW = "asked-to-read-the-diff"
 
 
-def env_int(name, default):
-    try:
-        return int(os.environ[name])
-    except (KeyError, ValueError):
-        return default
-
-
-def env_off(name):
-    return os.environ.get(name, "").strip().lower() in ("0", "off", "false", "no")
-
-
 # Fifty is the number everyone quotes and git's own tooling assumes: `git log
 # --oneline` and every forge's commit list truncate around there.
-SUBJECT_MAX = env_int("FOREMAN_SUBJECT_MAX", 50)
+SUBJECT_MAX = foreman_state.env_int("FOREMAN_SUBJECT_MAX", 50)
 
 # git up to its subcommand. VAR=value prefixes, and git's own -C dir and -c
 # key=value, can all sit in between, and a newline starts a command as surely
@@ -144,17 +128,6 @@ NEUTRAL_EXTENSIONS = {
 }
 
 
-def git(args, cwd):
-    """Returns [] on anything unexpected: "I could not tell" means stay quiet."""
-    try:
-        done = subprocess.run(
-            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5, check=False
-        )
-    except (OSError, subprocess.SubprocessError):
-        return []
-    return done.stdout.splitlines() if done.returncode == 0 else []
-
-
 def first_line(text):
     for line in text.split("\n"):
         if line.strip():
@@ -215,9 +188,9 @@ def staged(args, cwd):
     sweeps_everything = any(
         arg == "--all" or re.fullmatch(r"-[a-zA-Z]*a[a-zA-Z]*", arg) for arg in args
     )
-    names = git(["diff", "--cached", "--name-only"], cwd)
+    names = foreman_state.git(["diff", "--cached", "--name-only"], cwd)
     if sweeps_everything:
-        names += git(["diff", "--name-only"], cwd)
+        names += foreman_state.git(["diff", "--name-only"], cwd)
     return sorted(set(names))
 
 
@@ -350,11 +323,11 @@ def process_findings(session):
     if not foreman_state.state_dir(session):
         return []
     found = []
-    wrote = [path for path in foreman_state.marks(session, WROTE) if path]
+    wrote = [path for path in foreman_state.marks(session, foreman_state.WROTE) if path]
 
     if (
         wrote
-        and not foreman_state.marked(session, RAN)
+        and not foreman_state.marked(session, foreman_state.RAN)
         and not foreman_state.mark(session, ASKED_TO_TEST)
     ):
         found.append(
@@ -390,7 +363,7 @@ def main():
     if REVIEWING.search(command):
         foreman_state.mark(session, REVIEWED)
 
-    if os.environ.get("FOREMAN_OFF", "").strip() or env_off("FOREMAN_COMMIT_CHECK"):
+    if foreman_state.disabled("FOREMAN_COMMIT_CHECK"):
         return
     commit = COMMITTING.search(command)
     if not commit:

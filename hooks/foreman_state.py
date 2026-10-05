@@ -1,8 +1,8 @@
-"""Per-session scratch markers, shared by the hooks that write and read them.
+"""Per-session scratch markers, and the switches and git calls every hook uses.
 
 Shared rather than copied because the writer and the reader have to agree on the
-directory name exactly. If they drift, nothing errors: the marker is simply never
-found, and the check silently stops happening.
+directory and marker names exactly. If they drift, nothing errors: the marker is
+simply never found, and the check silently stops happening.
 
 Every function fails open and returns a falsey value rather than raising. A hook
 that crashes over a scratch file is worse than a hook that misses a nudge.
@@ -11,8 +11,41 @@ that crashes over a scratch file is worse than a hook that misses a nudge.
 import os
 import re
 import shutil
+import subprocess
 
 PREFIX = "foreman-"
+# Written by session_tests.py when a test runner goes by.
+RAN = "tests-ran"
+# Written by after_edit.py, one per production file, with the path as its body.
+WROTE = "wrote-"
+
+
+def env_int(name, default):
+    try:
+        return int(os.environ[name])
+    except (KeyError, ValueError):
+        return default
+
+
+def env_off(name):
+    return os.environ.get(name, "").strip().lower() in ("0", "off", "false", "no")
+
+
+def disabled(switch):
+    """FOREMAN_OFF silences everything; each check also has its own switch."""
+    return bool(os.environ.get("FOREMAN_OFF", "").strip()) or env_off(switch)
+
+
+def git(args, cwd):
+    """Returns [] on anything unexpected, because every caller treats "I could
+    not tell" as "stay quiet"."""
+    try:
+        done = subprocess.run(
+            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return done.stdout.splitlines() if done.returncode == 0 else []
 
 
 def state_dir(session_id, create=True):

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# foreman_state is the one module two hooks share, and the only one with no
+# foreman_state is the one module every hook shares, and the only one with no
 # process boundary of its own, so it is driven directly rather than through a
 # payload. The contracts below are the ones its callers silently depend on: the
 # dedupe return value, the prefix filter, and failing open instead of raising.
