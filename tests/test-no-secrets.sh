@@ -19,16 +19,16 @@ fail=0
 
 # Usage: check <name> <expect: allow|deny|ask> <path> <content>
 check() {
-  local name="$1" expect="$2" path="$3" content="$4"
+  local name="$1" expect="$2" path="$3" content="$4" cwd="${5:-/repo}"
   local out status
 
   out="$(python3 -c '
 import json, sys
 print(json.dumps({
     "tool_name": "Write",
-    "cwd": "/repo",
+    "cwd": sys.argv[3],
     "tool_input": {"file_path": sys.argv[1], "content": sys.argv[2]},
-}))' "$path" "$content" | bash "$HOOK" 2>/dev/null)"
+}))' "$path" "$content" "$cwd" | bash "$HOOK" 2>/dev/null)"
   status=$?
 
   if [ "$status" -ne 0 ]; then
@@ -166,6 +166,36 @@ check "ordinary code" allow "src/util.py" \
 # "latest" contains "test", and must not be read as a test path.
 check "latest.py is not a test path" deny "src/latest.py" \
   'AWS_ACCESS_KEY_ID = "AKIA2E0TVBZJ4QK7XYZM"'
+
+echo
+echo "does not stop at the first harmless match"
+
+# A placeholder or a documented key early in the file used to clear the whole
+# write, because only the first match of each pattern was ever looked at.
+check "a real key after the documented example" deny "src/config.py" \
+  'DOCUMENTED = "AKIAIOSFODNN7EXAMPLE"
+BACKUP = "AKIA2E0TVBZJ4QK7XYZM"'
+
+check "a real value after a placeholder" deny "src/config.py" \
+  'password = "changeme"
+API_KEY = "r34lV4lu3SuperSecretZZ"'
+
+check "a type-annotated assignment" deny "src/config.py" \
+  'API_KEY: str = "r34lV4lu3SuperSecretZZ"'
+
+check "a GitHub fine-grained token" deny "scripts/release.js" \
+  'const token = "github''_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012"'
+
+# "my" is how a real password can start, not only how a stand-in does.
+check "a value that merely starts with my" deny "src/db.py" \
+  'password = "mySup3rS3cretPw!"'
+
+# The exemptions are about where a file sits in the repo, not on the machine.
+check "a repo whose checkout path contains specs" deny "/Users/me/specs-site/src/config.py" \
+  'AWS_ACCESS_KEY_ID = "AKIA2E0TVBZJ4QK7XYZM"' "/Users/me/specs-site"
+check "a test directory inside that repo is still exempt" allow \
+  "/Users/me/specs-site/tests/test_config.py" \
+  'AWS_ACCESS_KEY_ID = "AKIA2E0TVBZJ4QK7XYZM"' "/Users/me/specs-site"
 
 echo
 echo "degrades quietly"

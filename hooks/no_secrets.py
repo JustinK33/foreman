@@ -24,7 +24,7 @@ PATTERNS = [
     ("a private key", re.compile(r"-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----")),
     ("an Anthropic API key", re.compile(r"sk-ant-[A-Za-z0-9_-]{24,}")),
     ("an OpenAI API key", re.compile(r"sk-(?:proj-)?[A-Za-z0-9_-]{32,}")),
-    ("a GitHub token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}")),
+    ("a GitHub token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{50,}")),
     ("a Slack token", re.compile(r"xox[baprs]-[0-9A-Za-z-]{10,}")),
     ("a live Stripe key", re.compile(r"sk_live_[0-9a-zA-Z]{20,}")),
     ("a Google API key", re.compile(r"AIza[0-9A-Za-z_-]{35}")),
@@ -42,6 +42,8 @@ ASSIGNMENT = re.compile(
     (?:password|passwd|secret|secret_key|client_secret|api_key|apikey
       |access_key|access_token|auth_token|private_key|bearer_token)
     [A-Za-z0-9_.\]"']*
+    # API_KEY: str = "...", where the colon belongs to the annotation.
+    (?: \s* : \s* [\w.\[\]|, ]+? (?=\s*=) )?
     \s* [:=] \s*
     (?P<quote>["'])(?P<value>[^"'\n]{8,})(?P=quote)
     """
@@ -52,7 +54,7 @@ PLACEHOLDER = re.compile(
     r"""(?ix)
     ^(?: x{3,} | \.{3,} | \*{3,} | [-_]{3,}
        | <[^>]*> | \{\{.*\}\} | \$\{?[A-Za-z_][\w]*\}?
-       | (?:your|my|the)[-_ ]?.* | change[-_ ]?me | replace[-_ ]?me
+       | your.* | (?:my|the)[-_ ].* | change[-_ ]?me | replace[-_ ]?me
        | example.* | sample.* | placeholder.* | dummy.* | fake.* | mock.*
        | test.* | todo.* | tbd | none | null | redacted | secret | password
        )$
@@ -94,18 +96,20 @@ def added_text(tool_name, tool_input):
 
 
 def findings(text):
+    # Every match, not the first: a documented example key near the top of a
+    # file must not vouch for a real one further down.
     found = []
     for label, pattern in PATTERNS:
-        match = pattern.search(text)
-        if match and not DOC_EXAMPLE.search(match.group(0)):
+        if any(not DOC_EXAMPLE.search(m.group(0)) for m in pattern.finditer(text)):
             found.append(label)
 
-    match = ASSIGNMENT.search(text)
-    value = match.group("value").strip() if match else ""
-    # DOC_EXAMPLE as well as PLACEHOLDER: one catches a value that starts like a
-    # stand-in, the other catches AKIAIOSFODNN7EXAMPLE, where the giveaway is at
-    # the end. Both mean nobody has to rotate anything.
-    if match and not PLACEHOLDER.match(value) and not DOC_EXAMPLE.search(value):
+    for match in ASSIGNMENT.finditer(text):
+        value = match.group("value").strip()
+        # DOC_EXAMPLE as well as PLACEHOLDER: one catches a value that starts like
+        # a stand-in, the other catches AKIAIOSFODNN7EXAMPLE, where the giveaway is
+        # at the end. Both mean nobody has to rotate anything.
+        if PLACEHOLDER.match(value) or DOC_EXAMPLE.search(value):
+            continue
         # Not a provider shape, so name the variable rather than claim to know
         # what the value is.
         name = match.group(0).split("=")[0].split(":")[0].strip()
@@ -131,6 +135,10 @@ def main():
     # would rather miss a secret than block a legitimate write it cannot judge.
     if not path:
         return
+    # Judged inside the repo, so a checkout at ~/specs-site is not a spec folder.
+    cwd = data.get("cwd") or ""
+    if cwd and os.path.isabs(path) and path.startswith(cwd.rstrip("/") + "/"):
+        path = os.path.relpath(path, cwd)
     if SKIP_PATH.search(path) or os.path.splitext(path)[1].lower() in SKIP_EXTENSION:
         return
 
