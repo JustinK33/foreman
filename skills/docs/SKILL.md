@@ -1,6 +1,6 @@
 ---
 name: docs
-description: Use when the user asks to write, update, or improve documentation, READMEs, API docs, docstrings, ADRs, or runbooks. Also trigger on "/foreman:docs" or "/docs".
+description: Use when the user asks to write, update, or improve documentation, READMEs, API docs, docstrings, ADRs, or runbooks.
 argument-hint: "[what to document]"
 ---
 

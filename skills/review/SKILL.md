@@ -1,6 +1,6 @@
 ---
 name: review
-description: Use before pushing, opening a PR, or when the user asks to review code, review a diff, or review a pull request. Also trigger on "/foreman:review" or "/review".
+description: Use before pushing, opening a PR, or when the user asks to review code, review a diff, or review a pull request.
 argument-hint: "[PR number, branch, or path]"
 ---
 

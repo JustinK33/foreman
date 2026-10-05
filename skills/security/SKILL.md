@@ -1,6 +1,6 @@
 ---
 name: security
-description: Use when the user asks for a security review, vulnerability scan, security audit, or to check code for security issues, front end or back end. Also trigger on "/foreman:security" or "/security".
+description: Use when the user asks for a security review, vulnerability scan, security audit, or to check code for security issues, front end or back end.
 argument-hint: "[file, directory, or area to audit]"
 ---
 

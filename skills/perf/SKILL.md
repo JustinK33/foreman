@@ -1,6 +1,6 @@
 ---
 name: perf
-description: Use when the user asks to improve performance, find bottlenecks, optimize the backend, or speed something up. Also trigger on "/foreman:perf" or "/perf".
+description: Use when the user asks to improve performance, find bottlenecks, optimize the backend, or speed something up.
 argument-hint: "[endpoint, function, or path]"
 ---
 
