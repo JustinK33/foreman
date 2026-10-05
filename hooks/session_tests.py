@@ -5,6 +5,8 @@ It cannot know whether anyone *ran* one, because that happens in a Bash call it
 never sees. This hook closes that gap across three events:
 
     PostToolUse (Bash)  a test runner was invoked, so record it
+    PostToolUseFailure  the same, for a runner that exited non-zero, which
+                        Claude Code reports here and never to PostToolUse
     Stop                production code landed, nothing ran, so say so once
     SessionEnd          throw the session's markers away
 

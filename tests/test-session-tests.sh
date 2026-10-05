@@ -313,5 +313,32 @@ print(json.dumps({"hook_event_name": "PreCompact", "session_id": "s-weird", "cwd
   | bash "$SESSION_HOOK" 2>/dev/null)"
 
 echo
+echo "a failing suite still counts as having run"
+
+# A Bash call that exits non-zero fires PostToolUseFailure, never PostToolUse,
+# so a red pytest was invisible and the Stop hook then said nothing had run.
+if python3 - "$ROOT/hooks/hooks.json" <<'PY'
+import json, sys
+hooks = json.load(open(sys.argv[1]))["hooks"].get("PostToolUseFailure", [])
+sys.exit(0 if any(
+    "Bash" in entry.get("matcher", "") and "session-tests.sh" in hook["command"]
+    for entry in hooks for hook in entry["hooks"]
+) else 1)
+PY
+then
+  ok "hooks.json routes PostToolUseFailure on Bash to the recorder"
+else
+  bad "hooks.json does not route PostToolUseFailure on Bash to session-tests.sh"
+fi
+
+wrote s-red "$REPO"
+python3 -c '
+import json
+print(json.dumps({"tool_name": "Bash", "hook_event_name": "PostToolUseFailure",
+    "session_id": "s-red", "cwd": "/repo", "tool_input": {"command": "pytest -q"},
+    "error": "Exit code 1"}))' | bash "$SESSION_HOOK" >/dev/null 2>&1
+expect_silent "a failed pytest is recorded as a run" "$(stop s-red)"
+
+echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
