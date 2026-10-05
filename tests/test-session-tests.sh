@@ -209,7 +209,14 @@ for command in \
   "tox -e py311" \
   "bash tests/test-after-edit.sh" \
   "cd /repo && pytest" \
-  "ruff check . ; pytest -q"
+  "ruff check . ; pytest -q" \
+  "node --test" \
+  "bats tests/" \
+  "php artisan test" \
+  "sbt test" \
+  "bazel test //..." \
+  "python tests/test_refunds.py" \
+  "./tests/run_tests.sh"
 do
   session="runner-$(printf '%s' "$command" | shasum | cut -c1-8)"
   wrote "$session" "$REPO"

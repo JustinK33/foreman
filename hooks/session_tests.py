@@ -56,8 +56,14 @@ TEST_COMMAND = re.compile(
       | mix \s+ test \b
       | ctest \b
       | (?: make | rake | just ) \s+ \S*test
-      # A frameworkless shell suite, which is what this repo's own tests are.
-      | (?: bash | sh | zsh ) \s+ \S*test\S*\.sh
+      | node \s+ --test \b
+      | bats \b
+      | php \s+ artisan \s+ test \b
+      | (?: sbt | bazel ) \s+ (?:\S+\s+)* test \b
+      # A test file run directly, and a frameworkless shell suite, which is what
+      # this repo's own tests are.
+      | python[\d.]* \s+ \S*test\S*\.py
+      | (?: (?: bash | sh | zsh ) \s+ | \./ ) \S*test\S*\.sh
     )
     """
 )
