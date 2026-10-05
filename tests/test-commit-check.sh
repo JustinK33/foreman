@@ -193,6 +193,37 @@ expect_deny "--message=" "past tense" "$QUIET" "$CODE_REPO" \
   'git commit --message="Added a retry"'
 expect_deny "a commit later in the line" "past tense" "$QUIET" "$CODE_REPO" \
   'git add -A && git commit -m "Added a retry"'
+expect_deny "--message with a space" "past tense" "$QUIET" "$CODE_REPO" \
+  'git commit --message "Added a retry"'
+
+# Every way to spell a commit that used to walk straight past the gate.
+expect_deny "git -C dir commit" "past tense" "$QUIET" "$CODE_REPO" \
+  "git -C $CODE_REPO commit -m \"Added a retry\""
+expect_deny "git -c key=value commit" "past tense" "$QUIET" "$CODE_REPO" \
+  'git -c user.name=x commit -m "Added a retry"'
+expect_deny "an environment prefix" "past tense" "$QUIET" "$CODE_REPO" \
+  'GIT_AUTHOR_NAME=x git commit -m "Added a retry"'
+expect_deny "a commit on its own line" "past tense" "$QUIET" "$CODE_REPO" \
+  'cd .
+git commit -m "Added a retry"'
+
+# Only the commit's own arguments are its message.
+# shellcheck disable=SC2016
+expect_deny "an earlier heredoc is not the subject" "nothing about what" "$QUIET" "$CODE_REPO" \
+  'cat > notes.txt <<'"'"'EOF'"'"'
+Add a helper
+EOF
+git status; git commit -m "fixed stuff"'
+expect_allow "another command's -m is not the message" "$QUIET" "$CODE_REPO" \
+  'grep -m1 foo notes.txt && git commit -m "fix: retry the uploader once"'
+expect_deny "--no-edit inside the message is not the flag" "does not need the period" \
+  "$QUIET" "$CODE_REPO" 'git commit -m "docs: explain the --no-edit flag."'
+# shellcheck disable=SC2016
+expect_deny "a heredoc marker inside a word does not end it" "over the 50" \
+  "$QUIET" "$CODE_REPO" 'git commit -m "$(cat <<'"'"'EOF'"'"'
+fix: handle EOF in the streaming parser when the socket closes early
+EOF
+)"'
 
 # No message on the command line means git opens an editor, and what happens in
 # there is not something a PreToolUse hook can see or should guess at.
@@ -356,6 +387,14 @@ expect_allow "silent after a git status" reviewed "$TEST_REPO" \
 payload Bash diffed "$TEST_REPO" 'git diff --cached' | bash "$HOOK" >/dev/null 2>&1
 expect_allow "silent after a git diff" diffed "$TEST_REPO" \
   'git commit -m "docs: fix a typo"'
+expect_allow "silent after a git -C diff" diffed-c "$TEST_REPO" \
+  "git -C $TEST_REPO diff --stat; git commit -m \"docs: fix a typo\""
+
+# "Once per session" is a marker on disk. If none can be written, the promise
+# would quietly become "every commit, forever".
+TMPDIR=/dev/null/unwritable expect_allow "no writable state means no process findings" \
+  stateless "$TEST_REPO" 'git commit -m "docs: fix a typo"'
+expect_allow "nor does a missing session id" "" "$TEST_REPO" 'git commit -m "docs: fix a typo"'
 
 echo
 echo "more than one thing wrong"

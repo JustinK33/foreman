@@ -54,17 +54,22 @@ def env_off(name):
 # --oneline` and every forge's commit list truncate around there.
 SUBJECT_MAX = env_int("FOREMAN_SUBJECT_MAX", 50)
 
+# git up to its subcommand. VAR=value prefixes, and git's own -C dir and -c
+# key=value, can all sit in between, and a newline starts a command as surely
+# as a semicolon does.
+GIT = r"(?:^|[;&|(\n]\s*)(?:\w+=\S*\s+)*git\s+(?:-[Cc]\s+\S+\s+|-[-\w=./]+\s+|--\w+\s+\S+\s+)*"
 # Committing at all, as opposed to the dozens of other things `git` does.
-COMMITTING = re.compile(r"(?:^|[;&|(]\s*)git\s+(?:-[-\w=./]+\s+|--\w+\s+\S+\s+)*commit\b")
+COMMITTING = re.compile(GIT + r"commit\b")
 # Looking before you leap. Recorded so the check below can tell whether anybody
 # read the change, which is the one best practice a hook can actually observe.
-REVIEWING = re.compile(
-    r"(?:^|[;&|(]\s*)git\s+(?:-[-\w=./]+\s+)*(?:status|diff|show|add\s+-p|add\s+--patch)\b"
-)
+REVIEWING = re.compile(GIT + r"(?:status|diff|show|add\s+-p|add\s+--patch)\b")
 
 # `git commit -m "$(cat <<'EOF' ... EOF)"`, which is the form Claude Code itself
-# is told to use, so parsing it is not optional.
-HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1\r?\n(.*?)(?:\r?\n)?[ \t]*\2", re.DOTALL)
+# is told to use, so parsing it is not optional. The closing marker has to be a
+# line of its own, or "Handle EOF in the parser" ends the message at "Handle".
+HEREDOC = re.compile(
+    r"<<-?\s*(['\"]?)(\w+)\1[^\n]*\n(.*?)^[ \t]*\2[ \t]*$", re.DOTALL | re.MULTILINE
+)
 
 # type(scope)!: is metadata, not the summary, but it does occupy the line.
 CONVENTIONAL = re.compile(r"^\w+(?:\([^)]*\))?!?:\s*")
@@ -165,6 +170,8 @@ def message_argument(args):
             return ""
         if arg.startswith("--message="):
             return arg.partition("=")[2]
+        if arg == "--message" and index + 1 < len(args):
+            return args[index + 1]
         # -m"subject", which shlex has already unquoted for us.
         if arg.startswith("-m") and len(arg) > len("-m"):
             return arg[2:]
@@ -174,24 +181,40 @@ def message_argument(args):
     return ""
 
 
-def subject_of(command):
+def commit_args(rest):
+    """The commit's own arguments, up to the next command in the chain. Reading
+    the whole line instead is how `grep -m1 foo && git commit ...` once had "1"
+    judged as its subject."""
+    lexer = shlex.shlex(rest, posix=True, punctuation_chars=";&|")
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    args = []
+    try:
+        for token in lexer:
+            if set(token) <= set(";&|"):
+                break
+            args.append(token)
+    except ValueError:
+        return []
+    return args
+
+
+def subject_of(rest, args):
     """The first line of the commit message, or "" if the command does not carry
     one. No message means git opens an editor, and what happens in there is not
     this hook's business."""
-    heredoc = HEREDOC.search(command)
+    heredoc = HEREDOC.search(rest)
     if heredoc:
         return first_line(heredoc.group(3))
-    try:
-        args = shlex.split(command, comments=False)
-    except ValueError:
-        return ""
     return first_line(message_argument(args))
 
 
-def staged(command, cwd):
+def staged(args, cwd):
     """The files this commit would record. `-a` stages the whole working tree on
     the way past, so that is what has to be listed for it."""
-    sweeps_everything = bool(re.search(r"(?:^|\s)-[a-zA-Z]*a[a-zA-Z]*(?=\s|$)", command))
+    sweeps_everything = any(
+        arg == "--all" or re.fullmatch(r"-[a-zA-Z]*a[a-zA-Z]*", arg) for arg in args
+    )
     names = git(["diff", "--cached", "--name-only"], cwd)
     if sweeps_everything:
         names += git(["diff", "--name-only"], cwd)
@@ -322,6 +345,10 @@ def process_findings(session):
     """The two practices that are about the commit rather than in it. Each one
     denies once per session and then trusts you, because neither is always
     possible and a hook that repeats itself forever gets switched off."""
+    # Once per session is a marker on disk. With nowhere to write one, it would
+    # quietly become every commit, forever.
+    if not foreman_state.state_dir(session):
+        return []
     found = []
     wrote = [path for path in foreman_state.marks(session, WROTE) if path]
 
@@ -365,19 +392,25 @@ def main():
 
     if os.environ.get("FOREMAN_OFF", "").strip() or env_off("FOREMAN_COMMIT_CHECK"):
         return
-    if not COMMITTING.search(command):
+    commit = COMMITTING.search(command)
+    if not commit:
         return
-    # --amend --no-edit and a rebase's own commits are not new messages.
-    if "--no-edit" in command or "--continue" in command:
+    rest = command[commit.end():]
+    args = commit_args(rest)
+    # --amend --no-edit reuses a message that was already judged.
+    if "--no-edit" in args:
         return
 
     cwd = data.get("cwd") or os.getcwd()
-    subject = subject_of(command)
+    # git -C dir commit records dir's index, not the one in cwd.
+    for directory in re.findall(r"-C\s+(\S+)", commit.group()):
+        cwd = os.path.join(cwd, directory)
+    subject = subject_of(rest, args)
     # Only a subject over the limit needs the transcript, so only then is it read.
     dictated = len(subject) > SUBJECT_MAX and user_said(subject, data.get("transcript_path"))
     found = (
         message_findings(subject, dictated)
-        + content_findings(staged(command, cwd))
+        + content_findings(staged(args, cwd))
         + process_findings(session)
     )
     if not found:
