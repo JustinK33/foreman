@@ -18,6 +18,10 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
 </p>
 
+<p align="center">
+  <img src="assets/demo.gif" width="900" alt="Claude tries to hardcode a live Stripe key and foreman refuses the write, then foreman refuses the commit &quot;fixed stuff and updated deps&quot; and Claude splits it into two clean commits">
+</p>
+
 ---
 
 ## About
