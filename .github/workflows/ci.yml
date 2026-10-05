@@ -54,6 +54,9 @@ jobs:
           import pathlib, sys
           bad = []
           for skill in sorted(pathlib.Path("skills").iterdir()):
+              # A stray file such as macOS .DS_Store is not a skill.
+              if not skill.is_dir():
+                  continue
               path = skill / "SKILL.md"
               if not path.is_file():
                   bad.append(skill.name + ": no SKILL.md")
