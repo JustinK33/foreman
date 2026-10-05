@@ -1,5 +1,5 @@
 {
-  "description": "Foreman lifecycle hooks: refuse a write that contains a credential, refuse a commit that is two changes or an unreadable subject, flag an oversized diff, production code that arrived without a test, and comments that narrate instead of explain, and ask before finishing if the tests never ran.",
+  "description": "Foreman guardrails: refuse a credential in a write, refuse an unreadable or mixed commit, nudge on oversized diffs, untested code and narrating comments, and ask before finishing if the tests never ran.",
   "hooks": {
     "PreToolUse": [
       {

@@ -5,12 +5,12 @@
     "name": "Justin Kong",
     "url": "https://github.com/JustinK33"
   },
-  "description": "A tight senior-engineer toolkit for Claude Code.",
+  "description": "Guardrail hooks and senior-engineer skills for Claude Code.",
   "plugins": [
     {
       "name": "foreman",
       "source": "./",
-      "description": "TDD, code review, security and performance audits, and documentation that doesn't read like AI wrote it, plus four hooks: one refuses to write a credential into a file, one refuses a commit that is two changes or a subject nobody can read, one speaks up when a diff outgrows its task, when production code lands without a test, or when a comment narrates the code instead of explaining it, and one asks before you finish if the suite never ran.",
+      "description": "Hooks that stop Claude Code from writing secrets, making junk commits, and skipping tests. Plus TDD, review, security, perf and docs skills.",
       "version": "0.3.0",
       "author": {
         "name": "Justin Kong"
@@ -19,18 +19,20 @@
       "repository": "https://github.com/JustinK33/foreman",
       "license": "MIT",
       "keywords": [
+        "guardrails",
+        "hooks",
+        "secret-scanning",
+        "credential-scanning",
+        "commit-hygiene",
+        "quality-gate",
+        "agent-safety",
         "tdd",
         "test-first",
-        "hooks",
-        "secrets",
-        "credential-scanning",
+        "testing",
         "code-review",
-        "commit-hygiene",
-        "code-comments",
         "security",
         "performance",
-        "documentation",
-        "senior-engineer"
+        "documentation"
       ]
     }
   ]
