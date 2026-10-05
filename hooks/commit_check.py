@@ -44,6 +44,7 @@ SUBJECT_MAX = foreman_state.env_int("FOREMAN_SUBJECT_MAX", 50)
 GIT = r"(?:^|[;&|(\n]\s*)(?:\w+=\S*\s+)*git\s+(?:-[Cc]\s+\S+\s+|-[-\w=./]+\s+|--\w+\s+\S+\s+)*"
 # Committing at all, as opposed to the dozens of other things `git` does.
 COMMITTING = re.compile(GIT + r"commit\b")
+ADDING = re.compile(GIT + r"add\b")
 # Looking before you leap. Recorded so the check below can tell whether anybody
 # read the change, which is the one best practice a hook can actually observe.
 REVIEWING = re.compile(GIT + r"(?:status|diff|show|add\s+-p|add\s+--patch)\b")
@@ -154,10 +155,10 @@ def message_argument(args):
     return ""
 
 
-def commit_args(rest):
-    """The commit's own arguments, up to the next command in the chain. Reading
-    the whole line instead is how `grep -m1 foo && git commit ...` once had "1"
-    judged as its subject."""
+def own_args(rest):
+    """A git subcommand's own arguments, up to the next command in the chain.
+    Reading the whole line instead is how `grep -m1 foo && git commit ...` once
+    had "1" judged as its subject."""
     lexer = shlex.shlex(rest, posix=True, punctuation_chars=";&|")
     lexer.whitespace_split = True
     lexer.commenters = ""
@@ -182,13 +183,27 @@ def subject_of(rest, args):
     return first_line(message_argument(args))
 
 
-def staged(args, cwd):
+def about_to_stage(before, cwd):
+    """What a `git add` earlier in the same command will have staged by the time
+    the commit runs. The hook reads the index before the command does anything,
+    so without this `git add x && git commit`, which is how Claude commits, is
+    judged as an empty commit. git's own --dry-run resolves the pathspecs."""
+    names = []
+    for add in ADDING.finditer(before):
+        for line in foreman_state.git(["add", "--dry-run", *own_args(before[add.end():])], cwd):
+            if line.startswith("add '") and line.endswith("'"):
+                names.append(line[len("add '"):-1])
+    return names
+
+
+def staged(args, cwd, before=""):
     """The files this commit would record. `-a` stages the whole working tree on
     the way past, so that is what has to be listed for it."""
     sweeps_everything = any(
         arg == "--all" or re.fullmatch(r"-[a-zA-Z]*a[a-zA-Z]*", arg) for arg in args
     )
     names = foreman_state.git(["diff", "--cached", "--name-only"], cwd)
+    names += about_to_stage(before, cwd)
     if sweeps_everything:
         names += foreman_state.git(["diff", "--name-only"], cwd)
     return sorted(set(names))
@@ -369,7 +384,7 @@ def main():
     if not commit:
         return
     rest = command[commit.end():]
-    args = commit_args(rest)
+    args = own_args(rest)
     # --amend --no-edit reuses a message that was already judged.
     if "--no-edit" in args:
         return
@@ -383,7 +398,7 @@ def main():
     dictated = len(subject) > SUBJECT_MAX and user_said(subject, data.get("transcript_path"))
     found = (
         message_findings(subject, dictated)
-        + content_findings(staged(args, cwd))
+        + content_findings(staged(args, cwd, command[: commit.start()]))
         + process_findings(session)
     )
     if not found:

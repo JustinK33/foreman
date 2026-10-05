@@ -281,6 +281,20 @@ git -C "$MIXED_DEPS" add package.json
 expect_deny "dependencies mixed with code" "changes dependencies" "$QUIET" "$MIXED_DEPS" \
   'git commit -m "fix: retry once"'
 
+# The hook reads the index before the command runs, so in `git add x && git
+# commit` nothing is staged yet. That is the form Claude itself commits with,
+# found by recording the README demo.
+ADD_IN_LINE="$(mktemp -d)"
+git -C "$ADD_IN_LINE" init -q
+printf 'x = 1\n' > "$ADD_IN_LINE/app.py"
+printf 'flask\n' > "$ADD_IN_LINE/requirements.txt"
+expect_deny "a git add in the same command counts as staged" "changes dependencies" \
+  "$QUIET" "$ADD_IN_LINE" 'git add app.py requirements.txt && git commit -m "fix: retry once"'
+expect_deny "git add -A in the same command" "changes dependencies" \
+  "$QUIET" "$ADD_IN_LINE" 'git add -A && git commit -m "fix: retry once"'
+expect_allow "adding only the code is a focused commit" "$QUIET" "$ADD_IN_LINE" \
+  'git add app.py && git commit -m "fix: retry once"'
+
 DEPS_ONLY="$(mktemp -d)"
 git -C "$DEPS_ONLY" init -q
 printf '{"dependencies":{"x":"2.0.0"}}\n' > "$DEPS_ONLY/package.json"
