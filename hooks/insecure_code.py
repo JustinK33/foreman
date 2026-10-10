@@ -12,10 +12,7 @@ to confirm" rather than "refuse outright".
 Never exits non-zero. A crash here would block every edit in the session.
 """
 
-import json
-import os
 import re
-import sys
 
 import foreman_state
 
@@ -243,22 +240,6 @@ PATTERNS = [
 ]
 
 
-def added_text(tool_name, tool_input):
-    """Only what this call introduces. Editing a line that happens to sit next
-    to a vulnerability is not the same as introducing the vulnerability."""
-    if tool_name == "Write":
-        return tool_input.get("content") or tool_input.get("file_text") or ""
-    if tool_name == "Edit":
-        return tool_input.get("new_string") or tool_input.get("new_str") or ""
-    if tool_name == "MultiEdit":
-        parts = []
-        for edit in tool_input.get("edits") or []:
-            if isinstance(edit, dict):
-                parts.append(edit.get("new_string") or edit.get("new_str") or "")
-        return "\n".join(parts)
-    return ""
-
-
 def findings(text):
     """Returns list of (vuln_type, explanation, fix) for all detected issues."""
     found = []
@@ -276,67 +257,37 @@ def main():
     if foreman_state.disabled("FOREMAN_INSECURE_CODE"):
         return
 
-    try:
-        data = json.loads(sys.stdin.read())
-    except Exception:
+    data = foreman_state.read_hook_input()
+    if not data:
         return
 
-    tool_input = data.get("tool_input") or {}
-    path = tool_input.get("file_path") or ""
-
-    # Cannot evaluate exemptions without a path. Fail open.
+    path = foreman_state.extract_file_path(data)
     if not path:
         return
 
-    # Convert to repo-relative path for consistent exemption checking
     cwd = data.get("cwd") or ""
-    if cwd and os.path.isabs(path) and path.startswith(cwd.rstrip("/") + "/"):
-        path = os.path.relpath(path, cwd)
+    path = foreman_state.make_relative(path, cwd)
 
-    # Exempt test files, fixtures, examples, and docs
-    if SKIP_PATH.search(path) or os.path.splitext(path)[1].lower() in SKIP_EXTENSION:
+    if foreman_state.is_exempted(path, SKIP_PATH, SKIP_EXTENSION):
         return
 
-    found = findings(added_text(data.get("tool_name", ""), tool_input))
+    tool_input = data.get("tool_input") or {}
+    found = findings(foreman_state.added_text(data.get("tool_name", ""), tool_input))
     if not found:
         return
 
-    # Build a clear, actionable warning message
     vuln_type, explanation, fix = found[0]
+    import os
     filename = os.path.basename(path)
 
     if len(found) == 1:
-        reason = (
-            f"[foreman] Security concern in {filename}:\n\n"
-            f"{explanation}.\n\n"
-            f"Fix: {fix}"
-        )
+        reason = f"[foreman] {vuln_type} in {filename}: {explanation} Fix: {fix}"
     else:
-        reason = (
-            f"[foreman] {len(found)} security concerns in {filename}:\n\n"
-            f"1. {vuln_type}: {explanation}\n"
-        )
-        for i, (vtype, expl, _) in enumerate(found[1:3], 2):
-            reason += f"{i}. {vtype}: {expl}\n"
-        if len(found) > 3:
-            reason += f"\n...and {len(found) - 3} more.\n"
-        reason += f"\nFirst fix: {fix}"
+        issues = "; ".join(f"{vtype}: {expl}" for vtype, expl, _ in found[:2])
+        more = f" (+{len(found) - 2} more)" if len(found) > 2 else ""
+        reason = f"[foreman] {len(found)} issues in {filename}: {issues}{more}. Fix: {fix}"
 
-    reason += (
-        "\n\nIf this is test/example code, move it to a tests/ or examples/ directory. "
-        "To disable these checks: set FOREMAN_INSECURE_CODE=off in .claude/settings.json"
-    )
-
-    json.dump(
-        {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "ask",
-                "permissionDecisionReason": reason,
-            }
-        },
-        sys.stdout,
-    )
+    foreman_state.ask_with_reason(reason)
 
 
 main()

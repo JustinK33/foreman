@@ -12,10 +12,7 @@ fixed prefix and length rather than a guess about entropy.
 Never exits non-zero. A crash here would block every edit in the session.
 """
 
-import json
-import os
 import re
-import sys
 
 import foreman_state
 
@@ -81,22 +78,6 @@ SKIP_EXTENSION = {
 }
 
 
-def added_text(tool_name, tool_input):
-    """Only what this call introduces. Editing a line that happens to sit next
-    to a key is not the same as writing the key."""
-    if tool_name == "Write":
-        return tool_input.get("content") or tool_input.get("file_text") or ""
-    if tool_name == "Edit":
-        return tool_input.get("new_string") or tool_input.get("new_str") or ""
-    if tool_name == "MultiEdit":
-        parts = []
-        for edit in tool_input.get("edits") or []:
-            if isinstance(edit, dict):
-                parts.append(edit.get("new_string") or edit.get("new_str") or "")
-        return "\n".join(parts)
-    return ""
-
-
 def findings(text):
     # Every match, not the first: a documented example key near the top of a
     # file must not vouch for a real one further down.
@@ -122,51 +103,38 @@ def findings(text):
 def main():
     if foreman_state.disabled("FOREMAN_SECRETS"):
         return
-    mode = os.environ.get("FOREMAN_SECRETS", "").strip().lower()
 
-    try:
-        data = json.loads(sys.stdin.read())
-    except Exception:
+    data = foreman_state.read_hook_input()
+    if not data:
+        return
+
+    path = foreman_state.extract_file_path(data)
+    if not path:
+        return
+
+    cwd = data.get("cwd") or ""
+    path = foreman_state.make_relative(path, cwd)
+
+    if foreman_state.is_exempted(path, SKIP_PATH, SKIP_EXTENSION):
         return
 
     tool_input = data.get("tool_input") or {}
-    path = tool_input.get("file_path") or ""
-    # With no path, none of the exemptions below can be evaluated, and this hook
-    # would rather miss a secret than block a legitimate write it cannot judge.
-    if not path:
-        return
-    # Judged inside the repo, so a checkout at ~/specs-site is not a spec folder.
-    cwd = data.get("cwd") or ""
-    if cwd and os.path.isabs(path) and path.startswith(cwd.rstrip("/") + "/"):
-        path = os.path.relpath(path, cwd)
-    if SKIP_PATH.search(path) or os.path.splitext(path)[1].lower() in SKIP_EXTENSION:
-        return
-
-    found = findings(added_text(data.get("tool_name", ""), tool_input))
+    found = findings(foreman_state.added_text(data.get("tool_name", ""), tool_input))
     if not found:
         return
 
-    what = found[0] if len(found) == 1 else found[0] + ", and " + str(len(found) - 1) + " more"
+    what = found[0] if len(found) == 1 else found[0] + f", and {len(found) - 1} more"
     reason = (
-        f"[foreman] This write contains what looks like {what}. Secrets do not belong in "
-        "tracked files: once written, the value has to be rotated, not just moved. "
-        "Read it from an environment variable instead, put the real value in .env, "
-        "and confirm .env is in .gitignore. If this is a placeholder or a documented "
-        "key format, make that obvious in the value itself (XXXX, or EXAMPLE) and "
-        "write it again."
+        f"[foreman] Detected {what}. Use environment variables (see .env) instead. "
+        "Secrets in commits must be rotated. For placeholders, use XXXX or EXAMPLE."
     )
 
-    json.dump(
-        {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                # "ask" hands the call to the user instead of refusing outright.
-                "permissionDecision": "ask" if mode == "ask" else "deny",
-                "permissionDecisionReason": reason,
-            }
-        },
-        sys.stdout,
-    )
+    import os
+    mode = os.environ.get("FOREMAN_SECRETS", "").strip().lower()
+    if mode == "ask":
+        foreman_state.ask_with_reason(reason)
+    else:
+        foreman_state.deny_with_reason(reason)
 
 
 main()
