@@ -27,10 +27,10 @@
 ## About
 
 foreman is a set of guardrails for Claude Code.
-Four hooks run on every write and every commit, whether or not you remember to ask, and five skills cover testing, review, security, performance and docs when you do.
+Five hooks run on every write and every commit, whether or not you remember to ask, and five skills cover testing, review, security, performance and docs when you do.
 
 Most plugins are a pile of skills, which means they only help when your wording happens to match a description.
-The hooks are the part that works when you are not watching: they refuse the two mistakes you cannot cleanly undo, a credential on disk and a bad commit in history, and nudge on the rest.
+The hooks are the part that works when you are not watching: they refuse credentials and bad commits you cannot cleanly undo, warn about insecure code patterns before they land, and nudge on the rest.
 Every one of them is tuned to stay quiet, because a check you learn to ignore is worse than no check.
 
 ## What it catches
@@ -38,6 +38,7 @@ Every one of them is tuned to stay quiet, because a check you learn to ignore is
 | The habit | Without foreman | With foreman |
 |---|---|---|
 | Pasting a live API key into `config.py` | The key is on disk, then in git, then it has to be rotated | The write is refused and Claude rewrites it to read an environment variable |
+| `cursor.execute("SELECT * FROM users WHERE id = " + user_id)` | SQL injection vulnerability ships to production | The write is paused with an explanation and Claude uses parameterized queries instead |
 | `git commit -m "fixed stuff and updated deps"` | A commit nobody can review, revert or bisect | The commit is refused with a numbered list of what to fix, and Claude retries |
 | Three hundred lines of code with no test | You find out in review, or in production | A nudge to write the test that would have failed, the moment the code lands |
 | "Done!" without ever running the suite | You find out when CI goes red | The turn does not end until the suite has run or Claude says why it cannot |
@@ -100,6 +101,68 @@ So it stays out of the way of:
 - Reading from the environment, which is the fix it asks for and so must never be what it blocks.
 
 Set `FOREMAN_SECRETS=ask` to be prompted instead of refused, or `off` to disable it.
+
+## The insecure code gate
+
+`insecure-code` runs on `PreToolUse` for `Write`, `Edit`, and `MultiEdit`, and warns when code contains patterns that could lead to security vulnerabilities. It prompts rather than blocks, because pattern matching has more nuance than credential detection, and the developer may have context the check cannot see.
+
+Claude gets told why the pattern is dangerous and how to fix it, so it rewrites the code securely instead of retrying blind.
+
+It detects:
+
+**SQL injection.** String concatenation or f-strings/template literals in SQL queries:
+```python
+cursor.execute("SELECT * FROM users WHERE id = " + user_id)  # Warns
+cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))  # Safe, allows
+```
+
+**Command injection.** `subprocess` with `shell=True` and variables, or `os.system` with interpolation:
+```python
+subprocess.run(f"git clone {repo_url}", shell=True)  # Warns
+subprocess.run(["git", "clone", repo_url])  # Safe, allows
+```
+
+**XSS.** Unescaped HTML rendering in React, vanilla JS, or Vue:
+```jsx
+<div dangerouslySetInnerHTML={{ __html: userContent }} />  // Warns
+<div>{sanitize(userContent)}</div>  // Safe, allows
+```
+
+**Insecure deserialization.** `pickle.load` or `yaml.load` without SafeLoader:
+```python
+data = pickle.load(file)  # Warns
+data = json.loads(file.read())  # Safe, allows
+```
+
+**Weak cryptography.** MD5 or SHA1 for password hashing:
+```python
+hash = hashlib.md5(password.encode())  # Warns
+hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())  # Safe, allows
+```
+
+**Eval on external input.** `eval()` or `exec()` on request data or LLM output:
+```python
+result = eval(request.data)  # Warns
+result = ast.literal_eval(input_str)  # Safe, allows
+```
+
+**AI-specific risks.** Prompt injection via f-strings, unsafe model loading:
+```python
+anthropic.messages.create(messages=[{"content": f"Task: {user_input}"}])  # Warns
+model = torch.load(path)  # Warns without weights_only=True
+model = torch.load(path, weights_only=True)  # Safe, allows
+```
+
+Like the secrets gate, it stays out of the way:
+
+- Tests, fixtures, mocks, and examples. Insecure patterns in test files are expected and harmless.
+- Markdown and other docs, where showing the wrong way before the right way is the point.
+- Safe patterns. Parameterized SQL, `shell=False`, `yaml.safe_load()`, and `torch.load(weights_only=True)` all pass without warning.
+- Files outside the repo or in `node_modules`, `vendor`, `dist`, `build`.
+
+The bar is "almost certainly vulnerable and almost certainly fixable". A pattern that fires on correct code trains the model to ignore it, which is worse than no check.
+
+Set `FOREMAN_INSECURE_CODE=off` to disable it.
 
 ## The edit hook
 
@@ -287,6 +350,7 @@ Every knob is an environment variable, because editing the script in place gets 
 | `FOREMAN_COMMIT_CHECK` | on | Set to `off` to let any commit through |
 | `FOREMAN_SOURCE_EXTENSIONS` | - | Extra extensions for the test-first and comment checks, comma separated: `.tf,.sql` |
 | `FOREMAN_SECRETS` | on | `ask` to be prompted instead of refused, `off` to disable the gate |
+| `FOREMAN_INSECURE_CODE` | on | Set to `off` to disable insecure code pattern detection |
 | `FOREMAN_TEST_RUN_CHECK` | on | Set to `off` to stop asking whether the suite ran |
 | `FOREMAN_OFF` | - | Set to any non-empty value to silence every check at once |
 
